@@ -4,31 +4,23 @@ require "coroutine"
 require "combat"
 require ("modules/tilephysics")
 require ("modules/coolision")
-local misc = require ("modules/misc")
-local sti = require ("modules/sti")
-require ("actors/box")
-require ("actors/impa")
-require ("actors/mobolee")
-require ("actors/shalltear")
-require ("actors/knight")
-require ("actors/moboleemaster")
+misc = require ("modules/misc")
+sti = require ("modules/sti")
 require "statsui"
 require ("modules/functional")
 require "light"
 require "animation"
 require "trail"
 require "camera"
-require "ui/healthdisplay"
-require "ui/playerhealth"
 fun = require "modules/functional"
 
 
-local renderbox = {
+renderbox = {
   lx = {},
   hx = {},
   ly = {},
   hy = {},
-  do_it = false
+  do_it = true
 }
 
 
@@ -83,15 +75,20 @@ function createmapdrawer(mapkey)
   return co
 end
 
-local levelpath = "res/rainylevel.lua"
-local shaderpath = "res/shaders/sprite.glsl"
+function loadshader(path)
+  local f = io.open(path, "rb")
+  local fstring = f:read("*all")
+  f:close()
+  return love.graphics.newShader(fstring)
+end
+
 local leveldraw
-function love.load()
+function setdefaults()
   -- Some global names
   gfx = love.graphics
   -- Set filtering to nearest neighor
   local filter = "nearest"
-  local s = 6
+  local s = 5
   love.graphics.setDefaultFilter(filter, filter, 0)
   gamedata.visual.scale = s
   gamedata.visual.width = love.graphics.getWidth()
@@ -100,55 +97,28 @@ function love.load()
   gamedata.visual.basecanvas = gfx.newCanvas(
     gamedata.visual.width, gamedata.visual.height
   )
-  -- Load stage
-  --levelid = gamedata.genid()
-  gamedata.resource.tilemaps[levelpath] = sti.new(levelpath)
-  misc.setPosSTIMap(gamedata.resource.tilemaps[levelpath], 0, 0)
-  gamedata.global.level = levelpath
-  local leveldraw = createmapdrawer(levelpath)
-  -- Update map and insert drawer
-  gamedata.visual.leveldraw = leveldraw
-  -- Call loaders
-  loaders.knight(gamedata)
-  loaders.shalltear(gamedata)
-  loaders.camera(gamedata)
-  loaders.light(gamedata)
-  loaders.trail(gamedata)
-  loaders.playerhealth(gamedata)
-  -- Light
-  light.testsetup(gamedata)
-  -- Sprite draw shader
-  local f = io.open(shaderpath, "rb")
-  local fstring = f:read("*all")
-  f:close()
-  gamedata.resource.shaders.sprite = gfx.newShader(fstring)
-  -- Create game logic coroutine
-  gameco = coroutine.create(game.init)
 end
 
 colres = {}
 combatreq = {}
 combatres = {}
 
-function love.update(dt)
+update = {}
+function update.system(gamedata, dt)
   -- Check for exit
   if gamedata.system.pressed["escape"] then love.event.quit() end
   -- Update time
   gamedata.system.time = love.timer.getTime()
   gamedata.system.dt = dt
+end
+function update.ai_n_combat(gamedata)
   --Run game script
-  coroutine.resume(gameco, gamedata, colres, combatreq, combatres)
-  trail.update(gamedata)
   -- Initiate all coroutines
   -- Gather coolision requests
   local masters = {}
   local colrequest = {}
   for id, co in pairs(gamedata.actor.action) do
     _, colrequest[id] = coroutine.resume(co, gamedata, id)
-    --for slave, request in pairs(masterrequest) do
-    --  masters[slave] = id
-    --  colrequest[slave] = request
-    --end
   end
   -- Flatten request table
   colres = coolision.docollisiondetections(gamedata, colrequest)
@@ -156,9 +126,6 @@ function love.update(dt)
   combatreq = {}
   for id, co in pairs(gamedata.actor.action) do
     _, combatreq[id] = coroutine.resume(co, colres)
-    --for k, v in pairs(subreq or {}) do
-    --  combatreq[k] = v
-    --end
   end
   -- TODO: Combat engine stuff
   combatres = combat.dorequests(gamedata, combatreq)
@@ -175,19 +142,21 @@ function love.update(dt)
     end
     if d > 0 then
       act.damage[id] = d
-      healthdisplay.add(gamedata, id)
     end
   end
   -- Do visualization
   for id, drawer in pairs(gamedata.actor.draw) do
     animation.entitydraw(gamedata, id, drawer)
   end
-  healthdisplay.update(gamedata)
+  if renderbox.do_it then
+    _, _, _, renderbox.lx, renderbox.hx, renderbox.ly, renderbox.hy = coolision.sortcoolisiongroups(gamedata, colrequest)
+  end
+end
+function update.movement(gamedata, map)
   -- Move all entities
-  local tmap = gamedata.resource.tilemaps[gamedata.global.level]
   local ac = gamedata.actor
   for id, _ in pairs(ac.x) do
-    local x, y, vx, vy, cx, cy = mapAdvanceEntity(tmap, "game", id, gamedata)
+    local x, y, vx, vy, cx, cy = mapAdvanceEntity(map, "geometry", id, gamedata)
     ac.x[id] = x
     ac.y[id] = y
     ac.vx[id] = vx
@@ -196,11 +165,8 @@ function love.update(dt)
     local tco = ac.terrainco[id]
     if tco then coroutine.resume(tco, gamedata, id, cx, cy) end
   end
-  if renderbox.do_it then
-    _, _, _, renderbox.lx, renderbox.hx, renderbox.ly, renderbox.hy = coolision.sortcoolisiongroups(gamedata, colrequest)
-  end
-  gamedata.cleanup = {}
 end
+
 
 function normalrender()
   --love.graphics.scale(gamedata.visual.scale)

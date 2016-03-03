@@ -1,3 +1,3 @@
 require "setup"
 
-game = require "testgame"
+game = require "test"

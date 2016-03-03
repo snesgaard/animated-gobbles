@@ -81,9 +81,11 @@ local futureXCollision = function(map, layer_index, dt, ex, ey, wx, wy, vx)
   -- Calculate map indices in y-axis which needs to be checked
   -- Add 1 to offset that lua arrays starts at 1
   local layer = map.layers[layer_index]
-  local ly = indexTransformY(ey + wy, map.y, map.tileheight)
-  local ty = indexTransformY(ey - wy, map.y, map.tileheight)
-  local cx = indexTransformX(ex, map.x, map.tilewidth)
+  local mx = map.offsetx
+  local my = map.offsety
+  local ly = indexTransformY(ey + wy, my, map.tileheight)
+  local ty = indexTransformY(ey - wy, my, map.tileheight)
+  local cx = indexTransformX(ex, mx, map.tilewidth)
   -- Check velocity and treat based
   local cleft, cright = retrieveSlope(cx, ty, layer_index, map)
   -- Check if we are standing on a slope and if it is facing our movement
@@ -94,26 +96,26 @@ local futureXCollision = function(map, layer_index, dt, ex, ey, wx, wy, vx)
     ty = ty - 1
   end
   if vx > 0 then
-    local tx = indexTransformX(ex + wx, map.x, map.tilewidth)
+    local tx = indexTransformX(ex + wx, mx, map.tilewidth)
     local fx = indexTransformX(ex + wx + vx * dt,
-                              map.x, map.tilewidth)
+                              mx, map.tilewidth)
     for x = math.max(1, tx), math.min(fx, layer.width) do
       for y = math.max(1, ly), math.min(ty, layer.height) do
         local left, right = retrieveSlope(x, y, layer_index, map)
         if notEmpty(left, right) and (left >= right) then
-          return inverseIndexTransformX(x - 1, map.x, map.tilewidth)
+          return inverseIndexTransformX(x - 1, mx, map.tilewidth)
         end
       end
     end
   elseif vx < 0 then
-    local lx = indexTransformX(ex - wx, map.x, map.tilewidth)
-    local fx = indexTransformX(ex - wx + vx * dt, map.x,
+    local lx = indexTransformX(ex - wx, mx, map.tilewidth)
+    local fx = indexTransformX(ex - wx + vx * dt, mx,
                               map.tilewidth)
     for x = math.min(lx, layer.width), math.max(1, fx), -1 do
       for y = math.max(1, ly), math.min(ty, layer.height) do
         local left, right = retrieveSlope(x, y, layer_index, map)
         if notEmpty(left, right) and (left <= right) then
-          return inverseIndexTransformX(x, map.x, map.tilewidth)
+          return inverseIndexTransformX(x, mx, map.tilewidth)
         end
       end
     end
@@ -124,16 +126,18 @@ end
 
 local futureYCollision = function(map, layer_index, dt, ex, ey, wx, wy, vy)
   local layer = map.layers[layer_index]
-  local lx = indexTransformX(ex - wx, map.x, map.tilewidth)
-  local tx = indexTransformX(ex + wx, map.x, map.tilewidth)
-  local cx = indexTransformX(ex, map.x, map.tilewidth)
+  local mx = map.offsetx
+  local my = map.offsety
+  local lx = indexTransformX(ex - wx, mx, map.tilewidth)
+  local tx = indexTransformX(ex + wx, mx, map.tilewidth)
+  local cx = indexTransformX(ex, mx, map.tilewidth)
   --print("entity", lx, cx, tx)
   if vy < 0 then
-    local ty = indexTransformY(ey - wy, map.y, map.tileheight)
-    local fy = indexTransformY(ey - wy + vy * dt, map.y,
+    local ty = indexTransformY(ey - wy, my, map.tileheight)
+    local fy = indexTransformY(ey - wy + vy * dt, my,
                               map.tileheight)
     local dfy = -indexTransformNoClamp(ey - wy + vy * dt,
-                                      map.y, map.tileheight)
+                                      my, map.tileheight)
     for y = math.max(1, ty), math.min(fy, layer.height) do
       --print("center", cx, y)
       local cy = layer.height + 1
@@ -143,18 +147,18 @@ local futureYCollision = function(map, layer_index, dt, ex, ey, wx, wy, vy)
         -- Calculate how far the center position vertically penetrates into the
         -- slope tile, this is done in a normalized measure
         local ty = dfy + indexTransformY(ey - wy + vy * dt,
-                                        map.y, map.tileheight) + 1
+                                        my, map.tileheight) + 1
         -- Calculate how far the center position horizontally penetrates into
         -- the slope tile, this is done in a normalized measure
-        local tx = indexTransformNoClamp(ex, map.x, map.tilewidth)
-                   - indexTransformX(ex, map.x, map.tilewidth) + 1
+        local tx = indexTransformNoClamp(ex, mx, map.tilewidth)
+                   - indexTransformX(ex, mx, map.tilewidth) + 1
         -- Calculate the height at which the center collision with the slope is.
         -- Again done in normalize coordinates.
         local d = 1 - (cleft*(1 - tx) + cright*tx) / map.tileheight
         -- If the entity penetrates into the slope -> collision!
         local dy = d + y - 1
         if dfy >= dy then
-          return inverseIndexTransformY(d + y - 1, map.y, map.tileheight)
+          return inverseIndexTransformY(d + y - 1, my, map.tileheight)
         else
           return nil
         end
@@ -182,18 +186,18 @@ local futureYCollision = function(map, layer_index, dt, ex, ey, wx, wy, vy)
       -- If cy is within the tilegrid, then a colllision point was found
       --print("End", cy)
       if cy < layer.height + 1 then
-        return inverseIndexTransformY(cy, map.y, map.tileheight)
+        return inverseIndexTransformY(cy, my, map.tileheight)
       end
     end
   elseif vy > 0 then
-    local ty = indexTransformY(ey + wy, map.y, map.tileheight)
-    local fy = indexTransformY(ey + wy + vy * dt, map.y,
+    local ty = indexTransformY(ey + wy, my, map.tileheight)
+    local fy = indexTransformY(ey + wy + vy * dt, my,
                               map.tileheight)
     for y = math.min(ty, layer.height), math.max(1, fy), -1 do
       for x = math.max(1, lx), math.min(tx, layer.width) do
         local left, right = retrieveSlope(x, y, layer_index, map)
         if notEmpty(left, right) then
-          return inverseIndexTransformY(y, map.y, map.tileheight)
+          return inverseIndexTransformY(y, my, map.tileheight)
         end
       end
     end
@@ -253,7 +257,7 @@ local resolveFutureY = function(y0, wy, vy, cy, dt)
   return y
 end
 
-local time_scale = 1.5
+local time_scale = 1--1.5
 
 function mapAdvanceEntity(map, layer_index, id, gamedata)
   assert(
@@ -282,8 +286,8 @@ function mapAdvanceEntity(map, layer_index, id, gamedata)
   end
   -- prevent entities from leaving the map
   x = math.max(
-    map.x + wx,
-    math.min(x, map.x + map.width * map.tilewidth - wx)
+    map.offsetx + wx,
+    math.min(x, map.offsetx + map.width * map.tilewidth - wx)
   )
 
   local cy = futureYCollision(map, layer_index, dt, x, y, wx, wy, vy)
@@ -296,8 +300,8 @@ function mapAdvanceEntity(map, layer_index, id, gamedata)
   vy = vy + gravity.y * dt
   --end
 
-  local mx = indexTransformX(x, map.x, map.tilewidth)
-  local my = indexTransformY(y - wy, map.y, map.tileheight)
+  local mx = indexTransformX(x, map.offsetx, map.tilewidth)
+  local my = indexTransformY(y - wy, map.offsety, map.tileheight)
   local left, right = retrieveSlope(mx, my, layer_index, map)
   -- Compensate for weak gravity if currently on a slope
   if left ~= right and notEmpty(left, right) and vy <= 0 then

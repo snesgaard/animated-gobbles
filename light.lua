@@ -1,112 +1,201 @@
 require "io"
+require "math"
 
-loaders = loaders or {}
+gfx = love.graphics
 
-local shaderpath = "res/shaders/lightshader.frag"
-local normalmap = "res/normals.png"
+rays = 1200
+raysteps = 1200
+size = 800
+occres = 800
 
-loaders.light = function(gamedata)
-  local f = io.open(shaderpath, "rb")
+light = {
+  color = {},
+  x = {},
+  y = {},
+  radius = {},
+}
+
+function init_light(res, id, x, y, radius, color)
+  res.x[id] = x
+  res.y[id] = y
+  res.radius[id] = radius
+  res.color[id] = color or {255, 255, 255}
+end
+
+function loadshader(path, path2)
+  local f = io.open(path, "rb")
   local fstring = f:read("*all")
   f:close()
-  gamedata.resource.shaders[shaderpath] = gfx.newShader(fstring)
-  local im = gfx.newImage(normalmap)
-  im:setFilter("linear", "linear")
-  im:setWrap("repeat", "repeat")
-  gamedata.resource.images[normalmap] = im
+
+  if path2 == nil then
+    return love.graphics.newShader(fstring)
+  else
+    local f2 = io.open(path2, "rb")
+    local fstring2 = f2:read("*all")
+    f2:close()
+    return love.graphics.newShader(fstring, fstring2)
+  end
 end
 
-light = {}
-light.draw = function(gamedata, canvas, x, y)
-  local light = gamedata.light
-  love.graphics.setColor(255, 255, 255)
-  local shader = gamedata.resource.shaders[shaderpath]
-  gfx.setShader(shader)
-  shader:send("normalmap", gamedata.resource.images[normalmap])
-  shader:send(
-    "campos", {-x,
-    y - gamedata.visual.height}
-  )
-  shader:send("scale", 1.0 / gamedata.visual.scale)
-  shader:send("ambientcoeffecient", light.ambient.coeffecient)
-  shader:send("ambientcolor", light.ambient.color)
-  shader:send("gamma", light.gamma)
-  -- Send a light source
-  local lp = light.point
-  local lpdata = {
-    color = {},
-    pos = {},
-    att = {},
-    count = 0,
+function love.load()
+  local filter = "nearest"
+  love.graphics.setDefaultFilter(filter, filter, 0)
+  occmap = gfx.newCanvas(occres, occres, 'r8')
+  polarmap = gfx.newCanvas(rays, raysteps, 'r8')
+  polarquad = gfx.newQuad(0, 0, rays, raysteps, occres, occres)
+  occshader = loadshader("occ.glsl", "occvert.glsl")
+  pwrapshader = loadshader("polarwrap.glsl")
+
+  shadowmap = gfx.newCanvas(rays, 1, 'rg32f')
+  varmap = gfx.newCanvas(rays, 1, 'rgba32f')
+  shadowquad = gfx.newQuad(0, 0, rays, 1, rays, raysteps)
+  castshader = loadshader("polarcast.glsl")
+  meanshader = loadshader("mean.glsl")
+  shadowshader = loadshader("shadowmap.glsl")
+
+  local im = gfx.newImage("cube.png")
+  local rx = {}
+  local ry = {}
+  local size = {}
+  for i = 1,50 do
+    table.insert(rx, love.math.random(0, gfx.getWidth()))
+    table.insert(ry, love.math.random(0, gfx.getHeight()))
+    table.insert(size, love.math.random() * 1.7 + 0.3)
+  end
+  draw_scene1 = function(t)
+    --gfx.rectangle("fill", 400 + math.cos(t * 3) * 30, 200 + math.sin(t * 3) * 30, 20, 20)
+    --gfx.rectangle("fill", 500, 350, 20, 20)
+    for i, x in pairs(rx) do
+      gfx.draw(im, x, ry[i], 0, size[i], size[i])
+    end
+    --gfx.draw(idleim, 200, 300, t, 2, 2)
+  end
+  draw_scene2 = function()
+    local step = 125
+    for x = step + 10, gfx.getWidth(), step do
+      for y = step + 10, gfx.getHeight(), step do
+        gfx.draw(im, x, y)
+      end
+    end
+  end
+  draw_scene3 = function()
+    local step = 125
+    gfx.draw(im, 300, 300)
+    gfx.draw(im, 290, 290)
+  end
+  draw_scene = draw_scene2
+  local vert = {
+    {1, 0, 1, 0},
+    {0, 0, 0, 0},
+    {0, 1, 0, 1},
+    {1, 1, 1, 1},
   }
-  for id, a in ipairs(lp.attenuation) do
-    table.insert(lpdata.color, {lp.red[id], lp.green[id], lp.blue[id]})
-    table.insert(lpdata.pos, {lp.x[id], lp.y[id], lp.z[id]})
-    table.insert(lpdata.att, a)
-    lpdata.count = lpdata.count + 1
+  shadowmesh = gfx.newMesh(vert, "fan")
+
+  colorcanvas = gfx.newCanvas(gfx.getWidth(), gfx.getHeight())
+  normalcanvas = gfx.newCanvas(gfx.getWidth(), gfx.getHeight())
+  cubeshader = loadshader("cube.glsl")
+  --shadowmesh:setTexture(varmap)
+  -- Initialize light
+  init_light(light, 1, 400, 600, 1000, {0, 0, 255})
+  init_light(light, 2, 1250, 550, 1000, {255, 0, 0})
+  init_light(light, 3, 400, 350, 1000, {0, 255, 0})
+
+  init_light(light, 4, 1250, 250, 1000, {255, 255, 0})
+  --init_light(light, 5, 400, 300, 1000, {255, 255, 0})
+  --init_light(light, 6, 1200, 300, 1000, {0, 255, 255})
+end
+
+
+function love.update(dt)
+
+end
+
+function draw_light(res, id, scene, colormap, normalmap)
+  local r = res.radius[id]
+  local d = r * 2
+  local s = occres / d
+  local x = res.x[id]
+  local y = res.y[id]
+  gfx.setShader(occshader)
+  gfx.setCanvas(occmap)
+  gfx.clear()
+  gfx.scale(s)
+  gfx.translate(-x, -y)
+  gfx.translate(occres * 0.5 / s, occres * 0.5 / s)
+  local sf = function()
+    --occshader:send("inv_screen", {0, 0})
+    occshader:send("inv_screen", {2 / occres, 2 / occres})
+    scene(t)
   end
-  shader:sendInt("lights", lpdata.count)
-  if lpdata.count > 0 then
-    shader:send("lightcolor", unpack(lpdata.color))
-    shader:send("lightpos", unpack(lpdata.pos))
-    shader:send("attenuation", unpack(lpdata.att))
-  end
-  -- Submit orthogonal light sources
-  local lo = light.ortho
-  local lodata = {
-    color = {},
-    dir = {},
-    coeff = {},
-    count = 0,
-  }
-  for id, c in ipairs(lo.coeffecient) do
-    table.insert(lodata.color, {lo.red[id], lo.green[id], lo.blue[id]})
-    table.insert(lodata.dir, {lo.dx[id], lo.dy[id], lo.dz[id]})
-    table.insert(lodata.coeff, c)
-    lodata.count = lodata.count + 1
-  end
-  shader:sendInt("ortholights", lodata.count)
-  if lodata.count > 0 then
-    shader:send("orthocolor", unpack(lodata.color))
-    shader:send("orthodir", unpack(lodata.dir))
-    shader:send("orthocoeffecient", unpack(lodata.coeff))
-  end
-  gfx.draw(canvas, 0, 0, 0)
+  love.graphics.setStencilTest("less", 1)
+  gfx.stencil(sf)
+  --occshader:send("inv_screen", {-2 / occres, -2 / occres})
+  occshader:send("inv_screen", {0, 0})
+  scene(t)
+  love.graphics.setStencilTest()
+  -- Wrap scene to polar coordinates
+  gfx.origin()
+  gfx.setCanvas(polarmap)
+  gfx.setShader(pwrapshader)
+  shadowmesh:setTexture(occmap)
+  gfx.draw(shadowmesh, 0, 0, 0, rays, raysteps)
+  -- Trace through each ray, obtaining the nearest occluder
+  gfx.setCanvas(shadowmap)
+  gfx.setShader(castshader)
+  castshader:send("STEP", 1.0 / raysteps)
+  castshader:sendInt("L", raysteps)
+  gfx.draw(polarmap, shadowquad)
+  -- Filter shadow map with variance method
+  gfx.setCanvas(varmap)
+  gfx.setShader(meanshader)
+  meanshader:send("texeloffset", 1.0 / rays)
+  meanshader:sendInt("rad", 10)
+  gfx.draw(shadowmap)
+  -- Draw ssa
+  gfx.setCanvas()
+  gfx.setShader(shadowshader)
+  shadowshader:send("colormap", colormap)
+  shadowshader:send("normalmap", normalmap)
+  shadowshader:send("inv_screen", {1.0 / gfx.getWidth(), 1.0 / gfx.getHeight()})
+  --shadowshader:send("normalmap", normalmap)
+  local color = res.color[id]
+  gfx.setColor(unpack(color))
+  shadowmesh:setTexture(shadowmap)
+  gfx.setBlendMode("add")
+  gfx.draw(shadowmesh, x - r , y -r, 0, d, d)
   gfx.setShader()
+  gfx.setBlendMode("alpha")
+  gfx.setColor(255, 255, 255)
+  --gfx.rectangle("line", x - r, y -r , d, d)
+  if false then
+    gfx.draw(polarmap, 700, 0)
+    gfx.rectangle("line", 700, 0, occres, occres)
+    gfx.rectangle("line", 700, 0, occres, occres / 2)
+    gfx.rectangle("line", 700, 0, occres / 2, occres)
+  end
 end
 
-local function setuppointlight(gamedata, color, pos, atten)
-  local lp = gamedata.light.point
-  local id = allocresource(lp)
-  lp.red[id] = color[1]
-  lp.green[id] = color[2]
-  lp.blue[id] = color[3]
-  lp.x[id] = pos[1]
-  lp.y[id] = pos[2]
-  lp.z[id] = pos[3]
-  lp.attenuation[id] = atten
-  return id
-end
-
-local function setuportholight(gamedata, color, dir, coeff)
-  local lo = gamedata.light.ortho
-  local id = allocresource(lo)
-  lo.red[id] = color[1]
-  lo.green[id] = color[2]
-  lo.blue[id] = color[3]
-  lo.dx[id] = dir[1]
-  lo.dy[id] = dir[2]
-  lo.dz[id] = dir[3]
-  lo.coeffecient[id] = coeff
-end
-
-light.testsetup = function(gamedata)
-  --setuppointlight(gamedata, {1.0, 1.0, 1.0}, {200, -200, 200}, 1e-5)
-  --setuppointlight(gamedata, {0.0, 1.0, 0.0}, {400, -200, 60}, 1e-4)
-  --setuppointlight(gamedata, {0.0, 0.0, 1.0}, {60, -200, 60}, 1e-5)
-
-  setuportholight(gamedata, {1, 1, 1}, {-1, 1, 1}, 0.6)
-
-  gamedata.light.ambient.coeffecient = 0.4
-  gamedata.light.ambient.color = {1, 1, 1}
+function love.draw()
+  local t = love.timer.getTime()
+  local scene = function()
+    draw_scene(t)
+  end
+  gfx.setCanvas(colorcanvas, normalcanvas)
+  gfx.clear({255, 255, 255, 255}, {0, 0, 0, 0})
+  gfx.setShader(cubeshader)
+  scene()
+  -- First draw scene without light, acquire color and normals
+  -- Then draw scene from all light's perspective
+  for id, _ in pairs(light.x) do
+    --light.x[id] = 1000 + math.sin(t) * 200
+    draw_light(light, id, scene, colorcanvas, normalcanvas)
+  end
+  -- Draw ambient light
+  gfx.setBlendMode("add")
+  --gfx.draw(colorcanvas, 0, 0)
+  gfx.setColor(255, 255, 255, 20)
+  gfx.draw(colorcanvas, 0, 0)
+  gfx.setBlendMode("alpha")
+  --gfx.draw(normalcanvas)
 end

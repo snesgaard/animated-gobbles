@@ -61,14 +61,12 @@ function animation.draw(gamedata, atid, anid, time, type, from, to)
     while true do
       while t > 0 do
         t = t - dt
-        local pf = function(tx, ty, tr, tsx, tsy)
-          tx = math.floor(tx - tsx * ox)
-          ty = math.floor(ty - tsy * oy)
-          atlas:add(anime.quads[anid][i], tx, ty, r, tsx, tsy)
-
-        end
-        pf(x, y, r, sx, sy)
-        dt, x, y, r, sx, sy = coroutine.yield(pf)
+        --x = math.floor(x - sx * ox)
+        --y = math.floor(y - sy * oy)
+        x = x - sx * ox
+        y = y - sy * oy
+        atlas:add(anime.quads[anid][i], x, y, r, sx, sy)
+        dt, x, y, r, sx, sy = coroutine.yield()
       end
       t = ft + t
       i = i + dir

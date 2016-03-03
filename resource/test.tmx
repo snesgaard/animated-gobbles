@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" renderorder="right-down" width="20" height="20" tilewidth="16" tileheight="16" nextobjectid="1">
+ <tileset firstgid="1" name="woodtile" tilewidth="16" tileheight="16">
+  <image source="tileset/woodtile.png" width="128" height="16"/>
+  <tile id="0">
+   <properties>
+    <property name="left" value="16"/>
+    <property name="right" value="16"/>
+   </properties>
+  </tile>
+  <tile id="1">
+   <properties>
+    <property name="left" value="16"/>
+    <property name="right" value="16"/>
+   </properties>
+  </tile>
+  <tile id="2">
+   <properties>
+    <property name="left" value="16"/>
+    <property name="right" value="16"/>
+   </properties>
+  </tile>
+  <tile id="3">
+   <properties>
+    <property name="left" value="16"/>
+    <property name="right" value="16"/>
+   </properties>
+  </tile>
+  <tile id="4">
+   <properties>
+    <property name="left" value="16"/>
+    <property name="right" value="16"/>
+   </properties>
+  </tile>
+  <tile id="5">
+   <properties>
+    <property name="left" value="16"/>
+    <property name="right" value="16"/>
+   </properties>
+  </tile>
+  <tile id="6">
+   <properties>
+    <property name="left" value="16"/>
+    <property name="right" value="16"/>
+   </properties>
+  </tile>
+  <tile id="7">
+   <properties>
+    <property name="left" value="16"/>
+    <property name="right" value="16"/>
+   </properties>
+  </tile>
+ </tileset>
+ <tileset firstgid="9" name="gobbles" tilewidth="32" tileheight="32">
+  <image source="tileset/gobbles.png" width="128" height="32"/>
+ </tileset>
+ <layer name="background" width="20" height="20">
+  <data encoding="base64" compression="zlib">
+   eJxjZGBgYBzFo3gUj+JRPIpJxADrnAGR
+  </data>
+ </layer>
+ <layer name="geometry" width="20" height="20">
+  <data encoding="base64" compression="zlib">
+   eJxjZGBgYKQB5qAQI5vFxkA5YB/h5jGTiVnp5L7BYB4LA8Lfg9F9+MwbjV/CYKjGLwgzUYhpUcaDMADhiQIz
+  </data>
+ </layer>
+ <layer name="entity" width="20" height="20">
+  <data encoding="base64" compression="zlib">
+   eJxjYBgFgxlwDrQDRsEoGAUUgeGchwE3nAAT
+  </data>
+ </layer>
+</map>

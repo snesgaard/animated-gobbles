@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" renderorder="right-down" width="20" height="20" tilewidth="16" tileheight="16" nextobjectid="1">
+ <tileset firstgid="1" name="woodtile3" tilewidth="16" tileheight="16">
+  <image source="tileset/woodtile3.png" width="32" height="160"/>
+  <tile id="0">
+   <properties>
+    <property name="left" value="16"/>
+    <property name="right" value="16"/>
+   </properties>
+  </tile>
+  <tile id="1">
+   <properties>
+    <property name="left" value="16"/>
+    <property name="right" value="16"/>
+   </properties>
+  </tile>
+  <tile id="2">
+   <properties>
+    <property name="left" value="16"/>
+    <property name="right" value="16"/>
+   </properties>
+  </tile>
+ </tileset>
+ <layer name="background" width="20" height="20" visible="0">
+  <data encoding="base64" compression="zlib">
+   eJxjZGBgYKQiZqIypqbbRt036r5R9426b9R91MMAPxkCWQ==
+  </data>
+ </layer>
+ <layer name="geometry" width="20" height="20">
+  <data encoding="base64" compression="zlib">
+   eJxjZGBgYKQiZqIyhplLKUB3H6VgqLmPmQJMD/dRCqjhPmQ/D0b3IYPR+CUdjNT4ZcbiPmphAABkAWU=
+  </data>
+ </layer>
+ <layer name="entity" width="20" height="20">
+  <data encoding="base64" compression="zlib">
+   eJxjYmBgYKIiZqEyhplLKUB3H6VgqLmPEkwP91EKqOE+bOl4MLkPGYzGL/lmDMX4pVZ8I7uPGuUzABuCAfk=
+  </data>
+ </layer>
+</map>
