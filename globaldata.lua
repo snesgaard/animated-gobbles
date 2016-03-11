@@ -55,6 +55,7 @@ gamedata = {
     shaders = {},
     tilemaps = {},
     atlas = {},
+    canvas = {},
   },
   actor = createresource({
     -- Geometric infomation
@@ -119,29 +120,17 @@ gamedata = {
     y = {},
   }),
   light = {
-    point = createresource({
-      x = {},
-      y = {},
-      z = {},
-      red = {},
-      green = {},
-      blue = {},
-      attenuation = {},
-    }),
-    ortho = createresource({
-      dx = {},
-      dy = {},
-      dz = {},
-      red = {},
-      green = {},
-      blue = {},
-      coeffecient = {}
-    }),
-    ambient = {
-      color = {0, 0, 0},
-      coeffecient = 0,
-    },
-    gamma = {1, 1, 1},
+      point = createresource({
+        color = {},
+        x = {},
+        y = {},
+        radius = {},
+        intensity = {},
+      }),
+      ambient = {
+        color = {255, 255, 255},
+        intensity = 0.1
+      },
   },
   ui = createresource({
     x = {},

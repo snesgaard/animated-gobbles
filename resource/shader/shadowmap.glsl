@@ -30,7 +30,6 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
     float sum = 0.0;
     vec2 centeruv = vec2(polar.x / M_PI * 0.5, 0.5);
     float bias = 0.0015 + 4 * blur.x;
-    bias = -bias * 0.5;
     sum += step(polar.y + bias, Texel(texture, centeruv - 4.0 * blur).r) * 0.05;
     sum += step(polar.y + bias, Texel(texture, centeruv - 3.0 * blur).r) * 0.09;
     sum += step(polar.y + bias, Texel(texture, centeruv - 2.0 * blur).r) * 0.12;
@@ -61,6 +60,7 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
                     vec2(texture_coords.x - 0.5, 0.5 - texture_coords.y)
                     );
         diffuse = dot(normal, l);
+        sum = 1;
     }
 
     return color * vec4(cm, diffuse * att * sum * 0.8);
