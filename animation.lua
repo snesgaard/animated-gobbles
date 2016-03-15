@@ -65,6 +65,8 @@ function animation.draw(gamedata, atid, anid, time, type, from, to)
         --y = math.floor(y - sy * oy)
         x = x - sx * ox
         y = y - sy * oy
+        -- HACK
+        atlas:setColor(255, 255, 255, 255 * (sx > 0 and 1 or -1))
         atlas:add(anime.quads[anid][i], x, y, r, sx, sy)
         dt, x, y, r, sx, sy = coroutine.yield()
       end
@@ -83,7 +85,7 @@ function animation.entitydraw(gamedata, id, co)
   local x = act.x[id]
   local y = act.y[id]
   local f = act.face[id]
-  return coroutine.resume(co, gamedata.system.dt, x, y, 0, f, -1)
+  return coroutine.resume(co, gamedata.system.dt, x, -y, 0, f, 1)
 end
 
 

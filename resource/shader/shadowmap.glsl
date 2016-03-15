@@ -29,7 +29,8 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
     //now we use a simple gaussian blur
     float sum = 0.0;
     vec2 centeruv = vec2(polar.x / M_PI * 0.5, 0.5);
-    float bias = 0.0015 + 4 * blur.x;
+    float bias = -0.002;
+    //float bias = -0.002;
     sum += step(polar.y + bias, Texel(texture, centeruv - 4.0 * blur).r) * 0.05;
     sum += step(polar.y + bias, Texel(texture, centeruv - 3.0 * blur).r) * 0.09;
     sum += step(polar.y + bias, Texel(texture, centeruv - 2.0 * blur).r) * 0.12;
@@ -50,18 +51,23 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
     att *= att;
 
     vec3 cm = Texel(colormap, screen_coords * inv_screen).rgb;
-    vec4 nm = Texel(normalmap, screen_coords * inv_screen);
-    vec2 normal = normalize(vec2(nm.x - 0.5, nm.y - 0.5));
-    float diffuse;
-    if (nm.a == 0) {
+    vec4 nm = Texel(normalmap, (screen_coords) * inv_screen);
+    float diffuse = 0;
+    if (nm.a < 0.5) {
         diffuse = 1;
+    }
+    else if (nm.b == 1) {
+        diffuse = 1;
+        sum = 1;
     } else {
+        vec2 normal = 2 * vec2(nm.x - 0.5, nm.y - 0.5);
         vec2 l = -normalize(
-                    vec2(texture_coords.x - 0.5, 0.5 - texture_coords.y)
-                    );
-        diffuse = dot(normal, l);
+            vec2(texture_coords.x - 0.5, 0.5 - texture_coords.y)
+        );
+        diffuse =  0.3 + 0.7 * max(0, dot(normal, l));
         sum = 1;
     }
+    //sum = 1;
 
     return color * vec4(cm, diffuse * att * sum * 0.8);
 }

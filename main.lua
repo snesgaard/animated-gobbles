@@ -1,4 +1,4 @@
 require "setup"
 
 rgame = require "test"
-require "light2"
+--require "light2"

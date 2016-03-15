@@ -5,7 +5,6 @@ uniform int L;
 
 vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
 {
-    //vec2 s = vec2(texture_coords.x, 0);
     for (int y = 0; y < L; y++) {
         vec2 s = vec2(texture_coords.x, (y + 0.5) * STEP);
         vec4 t = Texel(texture, s);

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.0" orientation="orthogonal" renderorder="right-down" width="20" height="20" tilewidth="16" tileheight="16" nextobjectid="1">
- <tileset firstgid="1" name="woodtile3" tilewidth="16" tileheight="16" tilecount="20" columns="2">
+<map version="1.0" orientation="orthogonal" renderorder="right-down" width="30" height="20" tilewidth="16" tileheight="16" nextobjectid="1">
+ <tileset firstgid="1" name="woodtile3" tilewidth="16" tileheight="16">
   <image source="tileset/woodtile3.png" width="32" height="160"/>
   <tile id="0">
    <properties>
@@ -21,19 +21,19 @@
    </properties>
   </tile>
  </tileset>
- <layer name="background" width="20" height="20">
+ <layer name="background" width="30" height="20">
   <data encoding="base64" compression="zlib">
-   eJxjZGBgYKQiZqIypqbbRt036r5R9426b9R91MMAPxkCWQ==
+   eJxjYmBgYBoGmIVIPNDupKdfh4t/R1r8jvp31L+j/h3aeNS/o/4FYQB5fwV7
   </data>
  </layer>
- <layer name="geometry" width="20" height="20">
+ <layer name="geometry" width="30" height="20">
   <data encoding="base64" compression="zlib">
-   eJxjZGBgYKQiZqIyhplLKUB3H6VgqLmPmQJMD/dRCqjhPmQ/D0b3IYPR+CUdjNT4ZcbiPmphAABkAWU=
+   eJxjZGBgYKQRZiYgNxAYZj+9ALp/6QVGun8Z0cRISSMwQGpaH41f4sBo/iUM0P1LSZjBwGh6xgSj6Zk+AFv5TE88UO0NALtPAik=
   </data>
  </layer>
- <layer name="entity" width="20" height="20">
+ <layer name="entity" width="30" height="20">
   <data encoding="base64" compression="zlib">
-   eJxjYmBgYKIiZqEyhplLKUB3H6WAGu5jZGBYAGPT2n2UYHq4j1JADfdhS8eDyX3IYDR+yTdjKMYvteIb2X3UKJ8BGRMCmg==
+   eJztwTEBAAAAwqD1T20JT6AAAHgaCWAAAQ==
   </data>
  </layer>
 </map>

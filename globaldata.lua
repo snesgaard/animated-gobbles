@@ -128,8 +128,8 @@ gamedata = {
         intensity = {},
       }),
       ambient = {
-        color = {255, 255, 255},
-        intensity = 0.1
+        color = {255, 100, 100},
+        intensity = 0.15
       },
   },
   ui = createresource({

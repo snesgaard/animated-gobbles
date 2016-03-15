@@ -64,7 +64,7 @@ function light.create_static(gamedata)
   light.create_mesh(gamedata)
 end
 
-function light.point_init(lp, id, x, y, radius, color, intensity)
+function light.init_point(lp, id, x, y, radius, color, intensity)
   lp.x[id] = x
   lp.y[id] = y
   lp.radius[id] = radius
@@ -93,6 +93,8 @@ function light.draw_point(gamedata, id, scene, colormap, normalmap)
   gfx.setShader(shaders.occ)
   gfx.setCanvas(fb.occmap)
   gfx.clear(0,0,0,0)
+  gfx.push()
+  gfx.origin()
   gfx.scale(s)
   gfx.translate(-x, -y)
   gfx.translate(occres * 0.5 / s, occres * 0.5 / s)
@@ -101,10 +103,10 @@ function light.draw_point(gamedata, id, scene, colormap, normalmap)
     --occshader:send("inv_screen", {3 / occres, 3 / occres})
     scene(t)
   end
-  love.graphics.setStencilTest("less", 1)
-  gfx.stencil(sf)
-  shaders.occ:send("inv_screen", {-2 / occres, -2 / occres})
-  --occshader:send("inv_screen", {0, 0})
+  --love.graphics.setStencilTest("less", 1)
+  --gfx.stencil(sf)
+  --shaders.occ:send("inv_screen", {-2 / occres, -2 / occres})
+  shaders.occ:send("inv_screen", {0, 0})
   scene(t)
   love.graphics.setStencilTest()
   -- Wrap scene to polar coordinates
@@ -129,19 +131,36 @@ function light.draw_point(gamedata, id, scene, colormap, normalmap)
   local h = colormap:getHeight()
   shaders.smap:send("inv_screen", {1.0 / w, 1.0 / h})
   --shadowshader:send("normalmap", normalmap)
+
   local color = res.color[id]
+  gfx.pop()
   gfx.setColor(unpack(color))
   mesh.light:setTexture(fb.shadowmap)
   gfx.setBlendMode("add")
-  gfx.draw(mesh.light, x - r , y -r, 0, d, d)
+  s = gamedata.visual.scale
+  gfx.draw(mesh.light, (x - r), (y - r), 0, d, d)
   gfx.setShader()
   gfx.setBlendMode("alpha")
   gfx.setColor(255, 255, 255)
   --gfx.rectangle("line", x - r, y -r , d, d)
-  if true then
+  if false then
+    gfx.push()
+    gfx.origin()
     gfx.draw(fb.occmap, 700, 0)
     gfx.rectangle("line", 700, 0, occres, occres)
     gfx.rectangle("line", 700, 0, occres, occres / 2)
     gfx.rectangle("line", 700, 0, occres / 2, occres)
+    gfx.pop()
   end
+end
+
+function light.draw_ambient(gamedata, colormap)
+  gfx.push()
+  -- Draw ambient
+  local amb = gamedata.light.ambient
+  local r, g, b = unpack(amb.color)
+  gfx.setColor(r, g, b, 255 * amb.intensity)
+  gfx.origin()
+  gfx.draw(gamedata.resource.canvas.colormap)
+  gfx.pop()
 end
