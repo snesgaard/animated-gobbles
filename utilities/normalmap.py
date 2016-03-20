@@ -26,11 +26,34 @@ v = l > 1e-5
 xim[v] = xim[v] / l[v]
 yim[v] = yim[v] / l[v]
 
+def dilate_mask(im, mask):
+    kernel = np.ones((3,3), dtype = "uint8")
+    kernel[:, 1] = 1
+    kernel[1, :] = 1
+    tmpim = cv2.dilate(im, kernel)
+    tmpim[mask] = im[mask]
+    return tmpim
+
+def show(im):
+    plt.figure()
+    plt.imshow(im, interpolation = "nearest")
+
+m = bim > 0
+xim[~m] = -1
+yim[~m] = -1
+xim = dilate_mask(xim, m)
+yim = dilate_mask(yim, m)
+bim = dilate_mask(bim, m)
+
 nmap = np.zeros(sh.shape, dtype = "uint8")
 
 nmap[:, :, 2] = (0.5 * xim[1:-1, 1:-1] + 0.5) * 255
 nmap[:, :, 1] = (0.5 * yim[1:-1, 1:-1] + 0.5) * 255
 nmap[:, :, 3] = bim[1:-1, 1:-1] * 255
 nmap[:, :, 0] = (l[1:-1, 1:-1] == 0) * 255
+
+
+#show(cv2.dilate(nmap[:, :, 2], np.ones((3, 3), dtype = 'uint8')))
+#plt.show()
 
 cv2.imwrite(out, nmap)

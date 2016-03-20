@@ -2,7 +2,7 @@ require "math"
 
 animation = {}
 
-function animation.init(anime, id, im, index, frames, ox, oy)
+function animation.init(anime, id, im, index, frames, ox, oy, normal_hack)
   anime.quads[id] = {}
   local x = index.x
   local y = index.y
@@ -19,6 +19,7 @@ function animation.init(anime, id, im, index, frames, ox, oy)
   anime.height[id] = h
   anime.x[id] = ox or 0
   anime.y[id] = oy or 0
+  anime.normals[id] = normal_hack or false
 end
 
 function animation.draw(gamedata, atid, anid, time, type, from, to)
@@ -30,6 +31,7 @@ function animation.draw(gamedata, atid, anid, time, type, from, to)
   to = to or #anime.quads[anid]
   local ox = anime.x[anid]
   local oy = anime.y[anid]
+  local nh = anime.normals[anid]
 
   local i = from
   local dir = 1
@@ -66,7 +68,8 @@ function animation.draw(gamedata, atid, anid, time, type, from, to)
         x = x - sx * ox
         y = y - sy * oy
         -- HACK
-        atlas:setColor(255, 255, 255, 255 * (sx > 0 and 1 or -1))
+        local a = (sx > 0 or not nh) and 1 or -1
+        atlas:setColor(255, 255, 255, 255 * a)
         atlas:add(anime.quads[anid][i], x, y, r, sx, sy)
         dt, x, y, r, sx, sy = coroutine.yield()
       end

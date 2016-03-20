@@ -148,7 +148,8 @@ function loader.gobbles(gamedata)
   local index = require "resource/sheet/gobbles"
   local function initanime(key, frames, ox, oy)
     anime[key] = initresource(
-      gamedata.animations, animation.init, sheet, index[key], frames, ox, oy
+      gamedata.animations, animation.init, sheet, index[key], frames, ox, oy,
+      true
     )
   end
   initanime("idle", 4, 15, 22)

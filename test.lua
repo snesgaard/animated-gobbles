@@ -110,7 +110,7 @@ function love.load()
   )
   local index = {x = 0, y = 0, w = laternim:getWidth(), h = laternim:getHeight()}
   local animid = initresource(
-    gamedata.animations, animation.init, laternim, index, 5, 2, 11
+    gamedata.animations, animation.init, laternim, index, 5, 8, 11
   )
   animatelight = coroutine.create(function(gd, lids)
     local phase = {}

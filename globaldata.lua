@@ -55,6 +55,12 @@ gamedata = {
     shaders = {},
     tilemaps = {},
     atlas = {},
+    --[[
+    atlas = createresource({
+      color = {},
+      normal = {}
+    }),
+    ]]--
     canvas = {},
   },
   actor = createresource({
@@ -118,6 +124,7 @@ gamedata = {
     -- Origin
     x = {},
     y = {},
+    normals = {},
   }),
   light = {
       point = createresource({
