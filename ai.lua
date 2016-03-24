@@ -104,3 +104,10 @@ function do_action(gamedata, id, hitbox, combat)
   if combat then r = combat(gamedata, id, res) else r = nil end
   return coroutine.yield(r)
 end
+
+function ai.on_ground(id)
+  local buffer = 0.1 -- Add to global data if necessary
+  local g = gamedata.spatial.ground[id]
+  local t = system.time
+  return g and t - g < buffer
+end

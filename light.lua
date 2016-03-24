@@ -20,17 +20,19 @@ end
 
 
 light = {}
+-- Stores framebuffers
+local fb = {}
+local mesh = {}
+local shaders = {}
 
 function light.create_fb(gamedata, width, height, occres, rays, raystep)
-  local fb = gamedata.resource.canvas
   fb.occmap = gfx.newCanvas(occres, occres, 'r8')
   fb.polarmap = gfx.newCanvas(rays, raysteps, 'r8')
   fb.shadowmap = gfx.newCanvas(rays, 1, 'rg32f')
-  fb.colormap = gfx.newCanvas(width, height)
-  fb.normalmap = gfx.newCanvas(width, height)
+  --fb.colormap = gfx.newCanvas(width, height)
+  --fb.normalmap = gfx.newCanvas(width, height)
 end
 function light.create_quad(gamedata, occres, rays, raysteps)
-  local mesh = gamedata.resource.mesh
   mesh.polarquad = gfx.newQuad(0, 0, rays, raysteps, occres, occres)
   mesh.shadowquad = gfx.newQuad(0, 0, rays, 1, rays, raysteps)
 end
@@ -41,7 +43,6 @@ function light.create_dynamic(gamedata, width, height, occres, rays, raystep)
 end
 
 function light.create_shader(gamedata)
-  local shaders = gamedata.resource.shaders
   shaders.occ = loadshader("occ.glsl", "occvert.glsl")
   shaders.wrap = loadshader("polarwrap.glsl")
   shaders.pcast = loadshader("polarcast.glsl")
@@ -49,7 +50,6 @@ function light.create_shader(gamedata)
 end
 
 function light.create_mesh(gamedata)
-  local mesh = gamedata.resource.mesh
   local vert = {
     {1, 0, 1, 0},
     {0, 0, 0, 0},
@@ -64,27 +64,24 @@ function light.create_static(gamedata)
   light.create_mesh(gamedata)
 end
 
-function light.init_point(lp, id, x, y, radius, color, intensity)
-  lp.x[id] = x
-  lp.y[id] = y
-  lp.radius[id] = radius
-  lp.color[id] = color
-  lp.intensity[id] = intensity
+function light.init_point(gd, id, x, y, radius, color, intensity)
+  gd.spatial.x[id] = x
+  gd.spatial.y[id] = y
+  gd.spatial.width[id] = radius
+  gd.radiometry.color[id] = color
+  gd.radiometry.intensity[id] = intensity
 end
 
-function light.draw_point(gamedata, id, scene, colormap, normalmap)
+function light.draw_point(id, scene, colormap, normalmap)
   -- Fetch references and data
-  local fb = gamedata.resource.canvas
-  local mesh = gamedata.resource.mesh
-  local res = gamedata.light.point
-  local shaders = gamedata.resource.shaders
   local gfx = love.graphics
   local prev_canvas = gfx.getCanvas()
+  local res = gamedata.spatial
 
   local occres = fb.occmap:getWidth()
   local rays = fb.polarmap:getWidth()
   local raysteps = fb.polarmap:getHeight()
-  local r = res.radius[id]
+  local r = res.width[id]
   local d = r * 2
   local s = occres / d
   local x = res.x[id]
@@ -96,7 +93,7 @@ function light.draw_point(gamedata, id, scene, colormap, normalmap)
   gfx.push()
   gfx.origin()
   gfx.scale(s)
-  gfx.translate(-x, -y)
+  gfx.translate(-x, y)
   gfx.translate(occres * 0.5 / s, occres * 0.5 / s)
   local sf = function()
     shaders.occ:send("inv_screen", {0, 0})
@@ -132,13 +129,12 @@ function light.draw_point(gamedata, id, scene, colormap, normalmap)
   shaders.smap:send("inv_screen", {1.0 / w, 1.0 / h})
   --shadowshader:send("normalmap", normalmap)
 
-  local color = res.color[id]
+  local color = gamedata.radiometry.color[id]
   gfx.pop()
   gfx.setColor(unpack(color))
   mesh.light:setTexture(fb.shadowmap)
   gfx.setBlendMode("add")
-  s = gamedata.visual.scale
-  gfx.draw(mesh.light, (x - r), (y - r), 0, d, d)
+  gfx.draw(mesh.light, (x - r), (-y - r), 0, d, d)
   gfx.setShader()
   gfx.setBlendMode("alpha")
   gfx.setColor(255, 255, 255)
@@ -154,13 +150,12 @@ function light.draw_point(gamedata, id, scene, colormap, normalmap)
   end
 end
 
-function light.draw_ambient(gamedata, colormap)
+function light.draw_ambient(colormap, color, intensity)
   gfx.push()
   -- Draw ambient
-  local amb = gamedata.light.ambient
-  local r, g, b = unpack(amb.color)
-  gfx.setColor(r, g, b, 255 * amb.intensity)
+  local r, g, b = unpack(color)
+  gfx.setColor(r, g, b, 255 * intensity)
   gfx.origin()
-  gfx.draw(gamedata.resource.canvas.colormap)
+  gfx.draw(colormap)
   gfx.pop()
 end

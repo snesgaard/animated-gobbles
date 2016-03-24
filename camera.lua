@@ -1,60 +1,46 @@
+require "math"
+
 loaders = loaders or {}
 
 camera = {}
 
-function loaders.camera(gamedata)
-  --gamedata.global.control.camera
+local gfx = love.graphics
+
+function camera.transformation(id, level)
+  local cw = gamedata.spatial.width[id]
+  local ch = gamedata.spatial.height[id]
+  local sx = gfx.getWidth() / cw
+  local sy = gfx.getHeight() / ch
+  gfx.scale(sx, sy)
+  local cx, cy = gamedata.spatial.x[id], gamedata.spatial.y[id]
+  if level then
+    cx, cy = camera.limit_map(id, level)
+  end
+  gfx.translate(cw * 0.5 - cx, ch * 0.5 + cy)
 end
 
-function camera.setpos(gamedata, x, y)
-  gamedata.visual.x = x
-  gamedata.visual.y = y
+function camera.wobble(x, y)
+  local spatial = gamedata.spatial
+  local function f(id)
+    local t = system.time
+    spatial.x[id] = x + 10 * math.cos(t)
+    spatial.y[id] = y + 10 * math.sin(t)
+    return f(coroutine.yield())
+  end
+  return coroutine.create(f)
 end
 
-local duration = 0.1
-local amp = 1
-local freq = 160
-function camera.hitshaker(pid)
-  return coroutine.create(function(gamedata, combatreq)
-    while true do
-      while true do
-        local c = combatreq[pid] or {}
-        local b = false
-        for _, v in pairs(c) do
-          if v.dmg > 1 then
-            amp = 2
-            duration = 0.15
-            b = true
-          else
-            amp = 1
-            duration = 0.1
-            b = true
-          end
-        end
-        if b then break end
-        gamedata, combatreq = coroutine.yield(0, 0)
-      end
-      local t = gamedata.system.time
-      local timer = misc.createtimer(gamedata, duration)
-      local dy = -amp
-      local ddy = amp * 0.5
-      while timer(gamedata) do
-        dy = dy + ddy
-        if math.abs(dy) >= amp then ddy = -ddy end
-        gamedata, combatreq = coroutine.yield(0, dy)
-      end
-    end
-  end)
-end
-
-function camera.track(pid)
-  local x = 0
-  local y = 0
-  return coroutine.create(function(gamedata)
-    while true do
-      x = gamedata.actor.x[pid] or 0
-      y = gamedata.actor.y[pid] or 0
-      coroutine.yield(x, y)
-    end
-  end)
+function camera.limit_map(id, level)
+  local spatial = gamedata.spatial
+  local x = spatial.x[id]
+  local y = spatial.y[id]
+  local w = spatial.width[id]
+  local h = spatial.height[id]
+  local mw = level.width * level.tilewidth
+  local mh = level.height * level.tileheight
+  x = math.max(x, w * 0.5 + level.tilewidth)
+  x = math.min(x, mw - w * 0.5 - level.tilewidth)
+  y = math.min(y, -h * 0.5 - level.tileheight)
+  y = math.max(y, -mh + h * 0.5 + level.tileheight)
+  return x, y
 end

@@ -22,9 +22,9 @@ function animation.init(anime, id, im, index, frames, ox, oy, normal_hack)
   anime.normals[id] = normal_hack or false
 end
 
-function animation.draw(gamedata, atid, anid, time, type, from, to)
-  local atlas = gamedata.resource.atlas[atid]
-  local anime = gamedata.animations
+function animation.draw(atid, anid, time, type, from, to)
+  local atlas = resource.atlas.color[atid]
+  local anime = resource.animation
 
   type = type or "repeat"
   from = from or 1
@@ -83,13 +83,21 @@ function animation.draw(gamedata, atid, anid, time, type, from, to)
   return coroutine.create(f)
 end
 
-function animation.entitydraw(gamedata, id, co)
-  local act = gamedata.actor
+function animation.entitydraw(id, co)
+  local act = gamedata.spatial
   local x = act.x[id]
   local y = act.y[id]
-  local f = act.face[id]
-  return coroutine.resume(co, gamedata.system.dt, x, -y, 0, f, 1)
+  local f = act.face[id] or 1
+  return coroutine.resume(co, system.dt, x, -y, 0, f, 1)
 end
 
+function animation.entitydrawer(id, ...)
+  local anime = animation.draw(...)
+  local function f(id)
+    animation.entitydraw(id, anime)
+    return f(coroutine.yield())
+  end
+  return coroutine.create(f)
+end
 
 return animation

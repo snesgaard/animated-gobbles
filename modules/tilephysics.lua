@@ -259,16 +259,16 @@ end
 
 local time_scale = 1--1.5
 
-function mapAdvanceEntity(map, layer_index, id, gamedata)
+function mapAdvanceEntity(map, layer_index, id)
   assert(
     map.layers[layer_index].type == 'tilelayer',
     "Invalid layer type: " .. map.layers[layer_index].type ..
     ". Layer must be of type: tilelayer"
   )
 
-  local dt = gamedata.system.dt
+  local dt = system.dt
 
-  local act = gamedata.actor
+  local act = gamedata.spatial
   local x = act.x[id]
   local y = act.y[id]
   local vx = act.vx[id]

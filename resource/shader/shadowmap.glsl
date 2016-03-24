@@ -64,7 +64,7 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
         vec2 l = -normalize(
             vec2(texture_coords.x - 0.5, 0.5 - texture_coords.y)
         );
-        diffuse =  0.3 + 0.7 * max(0, dot(normal, l));
+        diffuse = 0.3 + 0.7 * max(0, dot(normal, l));
         sum = 1;
     }
     //sum = 1;
