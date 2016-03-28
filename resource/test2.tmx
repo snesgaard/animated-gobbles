@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <map version="1.0" orientation="orthogonal" renderorder="right-down" width="30" height="20" tilewidth="16" tileheight="16" nextobjectid="71">
- <tileset firstgid="1" name="woodtile3" tilewidth="16" tileheight="16">
+ <tileset firstgid="1" name="woodtile3" tilewidth="16" tileheight="16" tilecount="20" columns="2">
   <image source="tileset/woodtile3.png" width="32" height="160"/>
   <tile id="0">
    <properties>
     <property name="left" value="16"/>
     <property name="right" value="16"/>
+    <property name="type" value="thin"/>
    </properties>
   </tile>
   <tile id="1">
@@ -21,10 +22,10 @@
    </properties>
   </tile>
  </tileset>
- <tileset firstgid="21" name="entity_16x32" tilewidth="16" tileheight="32">
+ <tileset firstgid="21" name="entity_16x32" tilewidth="16" tileheight="32" tilecount="200" columns="20">
   <image source="tileset/entity_16x32.png" width="320" height="320"/>
  </tileset>
- <tileset firstgid="221" name="entity_16x16" tilewidth="16" tileheight="16">
+ <tileset firstgid="221" name="entity_16x16" tilewidth="16" tileheight="16" tilecount="400" columns="20">
   <image source="tileset/entity_16x16.png" width="320" height="320"/>
   <tile id="0">
    <properties>
@@ -39,11 +40,11 @@
  </layer>
  <layer name="geometry" width="30" height="20">
   <data encoding="base64" compression="zlib">
-   eJxjZGBgYKQRZiYgNxAYZj+9ALp/6QVGun8Z0cRISSMwQGpaH41f4sBo/iUM0P1LSZjBwGh6xgSj6Zk+AFv5TE88UO0NALtPAik=
+   eJxjZGBgYKQRZiYgNxAYZj+9ALp/6QVGun8Z0cQIpQdkDAOkpvXR+CUOjOZfwgDdv5SEGQyMpmdMMJqe6QPwlbf0wAPV3gAAe98CHw==
   </data>
  </layer>
  <objectgroup name="entity">
-  <object id="58" name="lantern" type="lantern_A" gid="221" x="175" y="52.25" width="16" height="16"/>
+  <object id="58" name="lantern" type="lantern_A" gid="221" x="174.5" y="72.75" width="16" height="16"/>
   <object id="59" name="lantern" type="lantern_A" gid="221" x="309.25" y="91.5" width="16" height="16"/>
   <object id="60" type="lantern_A" gid="221" x="392.25" y="72.75" width="16" height="16"/>
   <object id="61" type="lantern_A" gid="221" x="397.5" y="135.75" width="16" height="16"/>
@@ -54,7 +55,7 @@
   <object id="66" type="lantern_A" gid="221" x="115.417" y="258.75" width="16" height="16"/>
   <object id="67" type="lantern_A" gid="221" x="305.417" y="231.25" width="16" height="16"/>
   <object id="68" type="lantern_A" gid="221" x="409.667" y="283" width="16" height="16"/>
-  <object id="69" name="player" type="gobbles" gid="21" x="57.5" y="96" width="16" height="32"/>
+  <object id="69" name="player" type="gobbles" gid="21" x="295.25" y="103.5" width="16" height="32"/>
   <object id="70" type="lantern_A" gid="221" x="52.75" y="66.5" width="16" height="16"/>
  </objectgroup>
 </map>

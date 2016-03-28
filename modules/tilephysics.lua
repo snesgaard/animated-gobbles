@@ -61,15 +61,24 @@ end
 
 local retrieveSlope = function(x, y, layer, map)
   local tileType = getTileType(x, y, layer, map)
-  if tileType == nil or tileType.properties.left == nil
-      or tileType.properties.right == nil then
-    return 0, 0
-  elseif tileType.left == nil or tileType.right == nil then
-    tileType.left = tonumber(tileType.properties.left)
-    tileType.right = tonumber(tileType.properties.right)
+  local left, right, type
+  if tileType == nil then return 0, 0 end
+  if not tileType.left then
+    if tileType.properties.left then
+      tileType.left = tonumber(tileType.properties.left)
+    else
+      tileType.left = 0
+    end
   end
-
-  return tileType.left, tileType.right
+  if not tileType.right then
+    if tileType.properties.right then
+      tileType.right = tonumber(tileType.properties.right)
+    else
+      tileType.right = 0
+    end
+  end
+  left, right = tileType.left, tileType.right
+  return left, right, tileType.properties.type
 end
 
 local notEmpty = function(left, right)
@@ -101,8 +110,9 @@ local futureXCollision = function(map, layer_index, dt, ex, ey, wx, wy, vx)
                               mx, map.tilewidth)
     for x = math.max(1, tx), math.min(fx, layer.width) do
       for y = math.max(1, ly), math.min(ty, layer.height) do
-        local left, right = retrieveSlope(x, y, layer_index, map)
-        if notEmpty(left, right) and (left >= right) then
+        local left, right, type = retrieveSlope(x, y, layer_index, map)
+        -- Generic tile collision
+        if not type and notEmpty(left, right) and (left >= right) then
           return inverseIndexTransformX(x - 1, mx, map.tilewidth)
         end
       end
@@ -113,8 +123,8 @@ local futureXCollision = function(map, layer_index, dt, ex, ey, wx, wy, vx)
                               map.tilewidth)
     for x = math.min(lx, layer.width), math.max(1, fx), -1 do
       for y = math.max(1, ly), math.min(ty, layer.height) do
-        local left, right = retrieveSlope(x, y, layer_index, map)
-        if notEmpty(left, right) and (left <= right) then
+        local left, right, type = retrieveSlope(x, y, layer_index, map)
+        if not type and notEmpty(left, right) and (left <= right) then
           return inverseIndexTransformX(x, mx, map.tilewidth)
         end
       end
@@ -139,10 +149,10 @@ local futureYCollision = function(map, layer_index, dt, ex, ey, wx, wy, vy)
     local dfy = -indexTransformNoClamp(ey - wy + vy * dt,
                                       my, map.tileheight)
     for y = math.max(1, ty), math.min(fy, layer.height) do
-      --print("center", cx, y)
       local cy = layer.height + 1
-      local cleft, cright = retrieveSlope(cx, y, layer_index, map)
-      ----print("left right", cleft, cright)
+      local cleft, cright, ctype = retrieveSlope(cx, y, layer_index, map)
+      local tile_upper_y = inverseIndexTransformY(y - 1, my, map.tileheight)
+      local thin_possible = tile_upper_y <= ey - wy + 1e-4
       if cleft ~= cright and notEmpty(cleft, cright) then
         -- Calculate how far the center position vertically penetrates into the
         -- slope tile, this is done in a normalized measure
@@ -162,25 +172,34 @@ local futureYCollision = function(map, layer_index, dt, ex, ey, wx, wy, vy)
         else
           return nil
         end
-      elseif notEmpty(cleft, cright) then
+      elseif
+        notEmpty(cleft, cright) and
+        (not ctype or thin_possible and ctype == "thin")
+      then
         cy = y - 1
       end
       -- If center wasn't a slope iterate through the remaining horizontal tiles
       -- We want to find the closest collision point
       for x = math.max(1, lx), math.min(cx - 1, layer.width) do
         --print("left", x, y)
-        local left, right = retrieveSlope(x, y, layer_index, map)
+        local left, right, ctype = retrieveSlope(x, y, layer_index, map)
         sy = y - right / map.tileheight
-        if notEmpty(left, right) and left == right and dfy >= sy and cy > sy then
-         cy = sy
+        if
+          (not ctype or thin_possible and ctype == "thin")
+          and notEmpty(left, right) and left == right and dfy >= sy and cy > sy
+        then
+          cy = sy
         end
       end
       for x = math.max(cx + 1, lx), math.min(tx, layer.width) do
         --print("right", x, y)
-        local left, right = retrieveSlope(x, y, layer_index, map)
+        local left, right, ctype = retrieveSlope(x, y, layer_index, map)
         sy = y - left / map.tileheight
-        if notEmpty(left, right) and left == right and dfy >= sy and cy > sy then
-         cy = sy
+        if
+          (not ctype or thin_possible and ctype == "thin")
+          and notEmpty(left, right) and left == right and dfy >= sy and cy > sy
+        then
+          cy = sy
         end
       end
       -- If cy is within the tilegrid, then a colllision point was found
@@ -195,8 +214,8 @@ local futureYCollision = function(map, layer_index, dt, ex, ey, wx, wy, vy)
                               map.tileheight)
     for y = math.min(ty, layer.height), math.max(1, fy), -1 do
       for x = math.max(1, lx), math.min(tx, layer.width) do
-        local left, right = retrieveSlope(x, y, layer_index, map)
-        if notEmpty(left, right) then
+        local left, right, type = retrieveSlope(x, y, layer_index, map)
+        if not type and notEmpty(left, right) then
           return inverseIndexTransformY(y, my, map.tileheight)
         end
       end
@@ -342,4 +361,34 @@ function generateCollisionMap(map, layer_index)
   end
 
   return collisionMap
+end
+
+local function layer_iterate(map, layer, x_low, x_up, y_low, y_up, func)
+  local xl = indexTransformX(x_low, map.offsetx, map.tilewidth)
+  local xu = indexTransformX(x_up, map.offsetx, map.tilewidth)
+  local yl = indexTransformY(y_low, map.offsety, map.tileheight)
+  local yu = indexTransformY(y_up, map.offsety, map.tileheight)
+
+  xl = math.max(1, xl)
+  xu = math.min(map.layers[layer].width, xu)
+  yl = math.max(1, yl)
+  yu = math.min(map.layers[layer].height, yu)
+
+  --print(xl, xu, yl, yu)
+  for x = xl, xu do
+    for y = yl, yu do
+      func(map, layer, x, y)
+    end
+  end
+end
+
+tilemap = {}
+function tilemap.all_of_type(map, layer, x_low, x_up, y_low, y_up, type)
+  local all_good = true
+  local function f(map, layer, x, y)
+    local r, l, ctype = retrieveSlope(x, y, layer, map)
+    all_good = all_good and (ctype == type or not notEmpty(r, l))
+  end
+  layer_iterate(map, layer, x_low, x_up, y_low, y_up, f)
+  return all_good
 end

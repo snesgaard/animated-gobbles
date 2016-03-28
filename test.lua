@@ -20,7 +20,7 @@ function love.load()
   camera_id = setdefaults()
   gamedata.ai.control[camera_id] = camera.wobble(0, 0)
   level = sti.new("resource/test3.lua")
-  table.foreach(level, print)
+  table.foreach(level.layers.geometry, print)
   renderbox.do_it = false
   -- Load entity
   loader.gobbles()
@@ -29,7 +29,8 @@ function love.load()
   --initresource(gamedata, init.lantern_A, 300, -80)
   --gobid = actor.gobbles(gamedata, 100, -60)
   -- Light
-  light.create_dynamic(gamedata, gfx.getWidth(), gfx.getHeight(), 800, 1200, 1200)
+  --light.create_dynamic(gamedata, gfx.getWidth(), gfx.getHeight(), 800, 1200, 1200)
+  light.create_dynamic(gamedata, gfx.getWidth(), gfx.getHeight(), 200, 400, 400)
   light.create_static(gamedata)
   cubeshad = loadshader("resource/shader/cube.glsl", "resource/shader/cube_vert.glsl")
   dnmap = gfx.newImage("resource/tileset/no_normal.png")
@@ -109,7 +110,7 @@ function love.draw()
       light.draw_point(lightid, scene, fb.colormap, fb.normalmap)
     end
     -- Draw ambient
-    light.draw_ambient(fb.colormap, {100, 100, 255}, 0.2)
+    light.draw_ambient(fb.colormap, {100, 100, 255}, 0.4)
   else
     gfx.origin()
     gfx.draw(fb.colormap)

@@ -5,7 +5,7 @@ local width = 1.5
 local height = 10
 local walkspeed = 30
 local runspeed = 75
-local jumpspeed = 120
+local jumpspeed = 250
 
 local atlas
 local anime = {}
@@ -14,6 +14,7 @@ local hitbox = {}
 local key = {
   left = "left",
   right = "right",
+  down = "down",
   runtoggle = "lalt",
   jump = "space"
 }
@@ -45,6 +46,13 @@ local control = {}
 local function no_action(id)
   do_action()
   return no_action(coroutine.yield())
+end
+
+local function check_thin_platform(id)
+  local xl = gd.spatial.x[id] - gd.spatial.width[id]
+  local xu = gd.spatial.x[id] + gd.spatial.width[id]
+  local y = gd.spatial.y[id] - gd.spatial.height[id] - 1
+  return tilemap.all_of_type(level, "geometry", xl, xu, y, y, "thin")
 end
 
 function action.constant_hspeed(vx)
@@ -89,127 +97,91 @@ local function arial_draw()
   return coroutine.create(f)
 end
 
-function control.init_run_jump(id)
-  gd.radiometry.draw[id] = arial_draw()
-  gd.ai.action[id] = action.constant_hspeed(runspeed)
-  return control.run_jump(id)
-end
-function control.run_jump(id)
-  if ai.on_ground(id) then
-    if input.isdown(key.left) or input.isdown(key.right) then
-      return control.init_run(id)
-    else
-      return control.init_idle(id)
-    end
-  end
-  return control.run_jump(coroutine.yield())
-end
-
-function control.init_arial(id)
-  gd.radiometry.draw[id] = arial_draw()
-  return control.init_arial_idle(id)
-end
-function control.init_arial_move(id)
-  gd.ai.action[id] = action.constant_hspeed(walkspeed)
-  return control.arial_move(id)
-end
-function control.arial_move(id)
-  if ai.on_ground(id) then
-    return control.init_walk(id)
-  end
-  local d = input_direction()
-  if d == 0 then
-    return control.init_arial_idle(id)
-  else
-    gamedata.spatial.face[id] = d
-  end
-  return control.arial_move(coroutine.yield())
-end
-
-function control.init_arial_idle(id)
-  gd.ai.action[id] = action.constant_hspeed(0)
-  return control.arial_idle(coroutine.yield())
-end
-function control.arial_idle(id)
-  if ai.on_ground(id) then
-    return control.init_idle(id)
-  end
-  local d = input_direction()
-  if d ~= 0 then
-    return control.init_arial_move(id)
-  end
-  return control.arial_idle(coroutine.yield())
-end
-
 function control.init_run(id)
+  local draw = {
+    run = animation.entitydrawer(id, atlas, anime.run, 0.85),
+    arial = arial_draw(),
+  }
   gd.ai.action[id] = action.constant_hspeed(runspeed)
-  gd.radiometry.draw[id] = animation.entitydrawer(id, atlas, anime.run, 0.85)
-  return control.run(id)
+  return control.run(draw, id)
 end
-function control.run(id)
-  if input.ispressed(key.jump) then
+function control.run(draw, id)
+  if input.ispressed(key.jump) and ai.on_ground(id) then
     input.latch(key.jump)
     gd.spatial.ground[id] = nil
-    gd.spatial.vy[id] = jumpspeed
-    return control.init_run_jump(id)
+    if input.isdown(key.down) and check_thin_platform(id) then
+      gd.spatial.y[id] = gd.spatial.y[id] - 1
+    else
+      gd.spatial.vy[id] = jumpspeed
+    end
   end
   local d = input_direction()
-  if d == 0 then
-    return control.init_idle(id)
-  elseif input.ispressed(key.runtoggle) then
-    input.latch(key.runtoggle)
-    return control.init_walk(id)
+  if ai.on_ground(id) and d ~= 0 then
+    gd.spatial.face[id] = d
+  end
+  -- Assign drawer
+  if ai.on_ground(id) then
+    gd.radiometry.draw[id] = draw.run
   else
-    gamedata.spatial.face[id] = d
+    gd.radiometry.draw[id] = draw.arial
   end
-
-  return control.run(coroutine.yield())
-end
-
-function control.init_walk(id)
-  gd.ai.action[id] = action.constant_hspeed(walkspeed)
-  gd.radiometry.draw[id] = animation.entitydrawer(id, atlas, anime.walk, 1.0)
-  return control.walk(id)
-end
-function control.walk(id)
-  if input.ispressed(key.jump) then
-    gd.spatial.ground[id] = nil
-    gd.spatial.vy[id] = jumpspeed
-    return control.init_arial(id)
-  elseif not ai.on_ground(id) then
-    return control.init_arial(id)
-  end
-
-  local d = input_direction()
-  if d == 0 then
-    return control.init_idle(id)
-  elseif input.ispressed(key.runtoggle) then
+  -- Pass to the next state
+  if ai.on_ground(id) and (d == 0 or input.ispressed(key.runtoggle)) then
     input.latch(key.runtoggle)
-    return control.init_run(id)
-  else
-    gamedata.spatial.face[id] = d
+    return control.init_movement(coroutine.yield())
   end
-  return control.walk(coroutine.yield())
+  return control.run(draw, coroutine.yield())
 end
 
-function control.init_idle(id)
-  gd.ai.action[id] = action.constant_hspeed(0)
-  gd.radiometry.draw[id] = animation.entitydrawer(id, atlas, anime.idle, 0.75)
-  return control.idle(coroutine.yield())
+function control.init_movement(id)
+  local co = {
+    draw = {
+      idle = animation.entitydrawer(id, atlas, anime.idle, 0.75),
+      walk = animation.entitydrawer(id, atlas, anime.walk, 1.0),
+      arial = arial_draw()
+    },
+    act = {
+      idle = action.constant_hspeed(0),
+      walk = action.constant_hspeed(walkspeed),
+    },
+  }
+  return control.movement(co, id)
 end
-function control.idle(id)
-  if input.ispressed(key.jump) then
+function control.movement(co, id)
+  if input.ispressed(key.jump) and ai.on_ground(id) then
+    input.latch(key.jump)
     gd.spatial.ground[id] = nil
-    gd.spatial.vy[id] = jumpspeed
-    return control.init_arial(id)
-  elseif not ai.on_ground(id) then
-    return control.init_arial(id)
+    if input.isdown(key.down) and check_thin_platform(id) then
+      gd.spatial.y[id] = gd.spatial.y[id] - 1
+    else
+      gd.spatial.vy[id] = jumpspeed
+    end
   end
-  local d = input_direction()
+  d = input_direction()
   if d ~= 0 then
-    return control.init_walk(id)
+    -- set const speed walk
+    gd.spatial.face[id] = d
+    gd.ai.action[id] = co.act.walk
+  else
+    -- Set const speed 0
+    gd.ai.action[id] = co.act.idle
   end
-  return control.idle(coroutine.yield())
+  -- Assign drawLayer
+  if not ai.on_ground(id) then
+    -- Set air drawer
+    gd.radiometry.draw[id] = co.draw.arial
+  elseif d ~= 0 then
+    -- Set walk drawer
+    gd.radiometry.draw[id] = co.draw.walk
+  else
+    -- Set idle drawer
+    gd.radiometry.draw[id] = co.draw.idle
+  end
+  if ai.on_ground(id) and input.ispressed(key.runtoggle) then
+    input.latch(key.runtoggle)
+    return control.init_run(coroutine.yield())
+  end
+  return control.movement(co, coroutine.yield())
 end
 
 function loader.gobbles()
@@ -255,9 +227,9 @@ function init.gobbles(gd, id, x, y)
     gd.spatial.vy[id] = 0
     gd.spatial.face[id] = 1
 
-    gd.ai.control[id] = coroutine.create(control.init_idle)
+    --gd.ai.control[id] = coroutine.create(control.init_idle)
+    gd.ai.control[id] = coroutine.create(control.init_movement)
     --gd.ai.action[id] = action.constant_hspeed(100)
-
     tag.entity[id] = true
 end
 
