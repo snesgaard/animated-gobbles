@@ -143,12 +143,13 @@ end
 function update.movement(gamedata, map)
   -- Move all entities
   --local ac = gamedata.actor
-  for id, _ in pairs(tag.entity) do
-    local x, y, vx, vy, cx, cy = mapAdvanceEntity(map, "geometry", id)
-    gamedata.spatial.x[id] = x
-    gamedata.spatial.y[id] = y
-    gamedata.spatial.vx[id] = vx
-    gamedata.spatial.vy[id] = vy
-    if cy and cy < y then gamedata.spatial.ground[id] = system.time end
+  for id, _ in pairs(gamedata.tag.entity) do
+    --local x, y, vx, vy, cx, cy = mapAdvanceEntity(map, "geometry", id)
+    --gamedata.spatial.x[id] = x
+    --gamedata.spatial.y[id] = y
+    --gamedata.spatial.vx[id] = vx
+    --gamedata.spatial.vy[id] = vy
+    --if cy and cy < y then gamedata.spatial.ground[id] = system.time end
+    physics.update_entity(map, "geometry", id)
   end
 end

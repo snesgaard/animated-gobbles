@@ -86,7 +86,7 @@ local notEmpty = function(left, right)
 end
 
 
-local futureXCollision = function(map, layer_index, dt, ex, ey, wx, wy, vx)
+local futureXCollision = function(map, layer_index, ex, ey, wx, wy, dx)
   -- Calculate map indices in y-axis which needs to be checked
   -- Add 1 to offset that lua arrays starts at 1
   local layer = map.layers[layer_index]
@@ -104,9 +104,9 @@ local futureXCollision = function(map, layer_index, dt, ex, ey, wx, wy, vx)
     -- lower row is ignored
     ty = ty - 1
   end
-  if vx > 0 then
+  if dx > 0 then
     local tx = indexTransformX(ex + wx, mx, map.tilewidth)
-    local fx = indexTransformX(ex + wx + vx * dt,
+    local fx = indexTransformX(ex + wx + dx,
                               mx, map.tilewidth)
     for x = math.max(1, tx), math.min(fx, layer.width) do
       for y = math.max(1, ly), math.min(ty, layer.height) do
@@ -117,9 +117,9 @@ local futureXCollision = function(map, layer_index, dt, ex, ey, wx, wy, vx)
         end
       end
     end
-  elseif vx < 0 then
+  elseif dx < 0 then
     local lx = indexTransformX(ex - wx, mx, map.tilewidth)
-    local fx = indexTransformX(ex - wx + vx * dt, mx,
+    local fx = indexTransformX(ex - wx + dx, mx,
                               map.tilewidth)
     for x = math.min(lx, layer.width), math.max(1, fx), -1 do
       for y = math.max(1, ly), math.min(ty, layer.height) do
@@ -134,7 +134,7 @@ local futureXCollision = function(map, layer_index, dt, ex, ey, wx, wy, vx)
   return nil
 end
 
-local futureYCollision = function(map, layer_index, dt, ex, ey, wx, wy, vy)
+local futureYCollision = function(map, layer_index, ex, ey, wx, wy, dy)
   local layer = map.layers[layer_index]
   local mx = map.offsetx
   local my = map.offsety
@@ -142,11 +142,11 @@ local futureYCollision = function(map, layer_index, dt, ex, ey, wx, wy, vy)
   local tx = indexTransformX(ex + wx, mx, map.tilewidth)
   local cx = indexTransformX(ex, mx, map.tilewidth)
   --print("entity", lx, cx, tx)
-  if vy < 0 then
+  if dy < 0 then
     local ty = indexTransformY(ey - wy, my, map.tileheight)
-    local fy = indexTransformY(ey - wy + vy * dt, my,
+    local fy = indexTransformY(ey - wy + dy, my,
                               map.tileheight)
-    local dfy = -indexTransformNoClamp(ey - wy + vy * dt,
+    local dfy = -indexTransformNoClamp(ey - wy + dy,
                                       my, map.tileheight)
     for y = math.max(1, ty), math.min(fy, layer.height) do
       local cy = layer.height + 1
@@ -156,7 +156,7 @@ local futureYCollision = function(map, layer_index, dt, ex, ey, wx, wy, vy)
       if cleft ~= cright and notEmpty(cleft, cright) then
         -- Calculate how far the center position vertically penetrates into the
         -- slope tile, this is done in a normalized measure
-        local ty = dfy + indexTransformY(ey - wy + vy * dt,
+        local ty = dfy + indexTransformY(ey - wy + dy,
                                         my, map.tileheight) + 1
         -- Calculate how far the center position horizontally penetrates into
         -- the slope tile, this is done in a normalized measure
@@ -208,9 +208,9 @@ local futureYCollision = function(map, layer_index, dt, ex, ey, wx, wy, vy)
         return inverseIndexTransformY(cy, my, map.tileheight)
       end
     end
-  elseif vy > 0 then
+  elseif dy > 0 then
     local ty = indexTransformY(ey + wy, my, map.tileheight)
-    local fy = indexTransformY(ey + wy + vy * dt, my,
+    local fy = indexTransformY(ey + wy + dy, my,
                               map.tileheight)
     for y = math.min(ty, layer.height), math.max(1, fy), -1 do
       for x = math.max(1, lx), math.min(tx, layer.width) do
@@ -234,43 +234,43 @@ end
 -- \cx is the optional collision on the axis, if this is nil then no collision
 -- occurred.
 -- \dt is the timestep for the resolution
-local resolveFutureX = function(x0, wx, vx, cx, dt)
+local resolveFutureX = function(x0, wx, dx, cx)
   local x = x0
   if cx ~= nil then
     -- resolve x collision
-    if vx > 0 then
+    if dx > 0 then
       -- if we are moving right
       -- move entity so that right side touches collision point
       x = (cx - wx)
-    elseif vx < 0 then
+    elseif dx < 0 then
       -- Next is added a very small factor to ensure that we are outside of
       -- of the collision tile
       x = (cx + wx) + 0.000001
     end
   else
     -- No collison, move entity to destination
-    x = x + vx * dt
+    x = x + dx
   end
 
   return x
 end
 
-local resolveFutureY = function(y0, wy, vy, cy, dt)
+local resolveFutureY = function(y0, wy, dy, cy)
   local y = y0
   if cy ~= nil then
     -- resolve y collision
-    if vy > 0 then
+    if dy > 0 then
       -- if we are moving right
       -- move entity so that right side touches collision point
       y = (cy - wy) - 0.000001
-    elseif vy < 0 then
+    elseif dy < 0 then
       -- Next is added a very small factor to ensure that we are outside of
       -- of the collision tile
       y = (cy + wy)
     end
   else
     -- No collison, move entity to destination
-    y = y + vy * dt
+    y = y + dy
   end
 
   return y
@@ -278,62 +278,90 @@ end
 
 local time_scale = 1--1.5
 
-function mapAdvanceEntity(map, layer_index, id)
+physics = {}
+function physics.move_entity(map, layer_index, x, y, wx, wy, dx, dy)
   assert(
     map.layers[layer_index].type == 'tilelayer',
     "Invalid layer type: " .. map.layers[layer_index].type ..
     ". Layer must be of type: tilelayer"
   )
 
-  local dt = system.dt
-
-  local act = gamedata.spatial
-  local x = act.x[id]
-  local y = act.y[id]
-  local vx = act.vx[id]
-  local vy = act.vy[id]
-  local wx = act.width[id]
-  local wy = act.height[id]
-
-
-  dt = dt * time_scale
-  local cx = futureXCollision(map, layer_index, dt, x, y, wx, wy, vx)
-  x = resolveFutureX(x, wx, vx, cx, dt)
+  local cx = futureXCollision(map, layer_index, x, y, wx, wy, dx)
+  x = resolveFutureX(x, wx, dx, cx)
   -- Resolve and advance velocities
-  if cx ~= nil then
-    vx = 0
-  end
   -- prevent entities from leaving the map
   x = math.max(
     map.offsetx + wx,
     math.min(x, map.offsetx + map.width * map.tilewidth - wx)
   )
 
-  local cy = futureYCollision(map, layer_index, dt, x, y, wx, wy, vy)
-  y = resolveFutureY(y, wy, vy, cy, dt)
-  if cy ~= nil then
-    vy = 0
-  end
-  --if entity._do_gravity then
-  vx = vx + gravity.x * dt -- Acceleration should possibly be here
-  vy = vy + gravity.y * dt
-  --end
+  local cy = futureYCollision(map, layer_index, x, y, wx, wy, dy)
+  y = resolveFutureY(y, wy, dy, cy)
 
+  return x, y, cx, cy
+end
+
+function physics.accelerate(dt, vx, vy, cx, cy)
+  if cx then
+    vx = 0
+  else
+    vx = vx + gravity.x * dt
+  end
+  if cy then
+    vy = 0
+  else
+    vy = vy + gravity.y * dt
+  end
+
+  return vx, vy
+end
+
+function physics.slope_compensate(map, layer, x, y, wy, vx, vy)
+  -- Slightly accelerate if on a slope
   local mx = indexTransformX(x, map.offsetx, map.tilewidth)
   local my = indexTransformY(y - wy, map.offsety, map.tileheight)
-  local left, right = retrieveSlope(mx, my, layer_index, map)
+  local left, right = retrieveSlope(mx, my, layer, map)
   -- Compensate for weak gravity if currently on a slope
   if left ~= right and notEmpty(left, right) and vy <= 0 then
     local scale = 1.01 * (left - right) / map.tilewidth
     vy = math.min(vy, -math.abs(vx * scale))
   end
+  return vy
+end
 
-  --if  (cx ~= nil or cy ~= nil) and entity.mapCollisionCallback ~= nil then
-  --if entity.mapCollisionCallback then
-  --  entity.mapCollisionCallback(entity, map, collisionMap, cx, cy)
-  --end
+function physics.update_entity(map, layer, id)
+  local spa = gamedata.spatial
+  local x = spa.x[id]
+  local y = spa.y[id]
+  local vx = spa.vx[id]
+  local vy = spa.vy[id]
+  local wx = spa.width[id]
+  local wy = spa.height[id]
+  local dt = system.dt
 
-  return x, y, vx, vy, cx, cy
+  local dx = vx * dt
+  local dy = vy * dt
+  local cx, cy
+  x, y, cx, cy = physics.move_entity(map, layer, x, y, wx, wy, dx, dy)
+  vx, vy = physics.accelerate(dt, vx, vy, cx, cy)
+  vy = physics.slope_compensate(map, layer, x, y, wy, vx, vy)
+
+  spa.x[id] = x
+  spa.y[id] = y
+  spa.vx[id] = vx
+  spa.vy[id] = vy
+  if cy and cy < y then gamedata.spatial.ground[id] = system.time end
+end
+
+function physics.displace_entity(map, layer, id, dx, dy)
+  local spa = gamedata.spatial
+  local x = spa.x[id]
+  local y = spa.y[id]
+  local wx = spa.width[id]
+  local wy = spa.height[id]
+  x, y, _, _ = physics.move_entity(map, layer, x, y, wx, wy, dx, dy)
+  spa.x[id] = x
+  spa.y[id] = y
 end
 
 --Iterates through all tilesets in a tiled map and populates them with left

@@ -15,7 +15,7 @@ out = sys.argv[2]
 s = 5
 bim = np.zeros((sh.shape[0] + 2, sh.shape[1] + 2), dtype = "float32")
 
-bim[1:-1, 1:-1] = sh[:, :, -1] > 0
+bim[1:-1, 1:-1] = sh[:, :, -1] == 255
 
 bbim = bim * cv2.blur(bim, (3, 3))
 xim = bim * cv2.Sobel(bbim, cv2.CV_32F, 1, 0, ksize = 3)
@@ -41,9 +41,9 @@ def show(im):
 m = bim > 0
 xim[~m] = -1
 yim[~m] = -1
-xim = dilate_mask(xim, m)
-yim = dilate_mask(yim, m)
-bim = dilate_mask(bim, m)
+#xim = dilate_mask(xim, m)
+#yim = dilate_mask(yim, m)
+#bim = dilate_mask(bim, m)
 
 nmap = np.zeros(sh.shape, dtype = "uint8")
 

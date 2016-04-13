@@ -2,13 +2,16 @@ loader = {}
 actor = {}
 init = {}
 parser = {}
+drawer = {}
 
 require "io"
 require "light"
 require "math"
 require "camera"
+require "draw"
+require "sfx"
 
-require "actor/gobbles"
+require "actor/gobbles/base"
 require "prop/latern_A"
 
 gfx = love.graphics
@@ -23,8 +26,11 @@ function love.load()
   table.foreach(level.layers.geometry, print)
   renderbox.do_it = false
   -- Load entity
+  loader.sfx()
   loader.gobbles()
   loader.lantern_A()
+  loader.drawing()
+  --loader.blast()
   --love.event.quit()
   --initresource(gamedata, init.lantern_A, 300, -80)
   --gobid = actor.gobbles(gamedata, 100, -60)
@@ -35,7 +41,9 @@ function love.load()
   cubeshad = loadshader("resource/shader/cube.glsl", "resource/shader/cube_vert.glsl")
   dnmap = gfx.newImage("resource/tileset/no_normal.png")
   fb.colormap = gfx.newCanvas(width, height)
+  fb.scenemap = gfx.newCanvas(width, height)
   fb.normalmap = gfx.newCanvas(width, height)
+  fb.bloommap = gfx.newCanvas(width, height)
 
   -- Intansiate objects
   for _, obj in pairs(level.layers.entity.objects) do
@@ -46,6 +54,20 @@ function love.load()
       initresource(gamedata, type_init, unpack(args))
     end
   end
+
+  --initresource(gamedata, init.blast, 100, 100)
+end
+
+map_geometry = {}
+function map_geometry.check_thin_platform(id)
+  local gd = gamedata
+  local xl = gd.spatial.x[id] - gd.spatial.width[id]
+  local xu = gd.spatial.x[id] + gd.spatial.width[id]
+  local y = gd.spatial.y[id] - gd.spatial.height[id] - 1
+  return tilemap.all_of_type(level, "geometry", xl, xu, y, y, "thin")
+end
+function map_geometry.diplace(id, dx, dy)
+  physics.displace_entity(level, "geometry", id, dx or 0, dy or 0)
 end
 
 function love.update(dt)
@@ -68,22 +90,40 @@ end
 function love.draw()
   camera.transformation(camera_id, level)
   local scene = function()
-    level:drawLayer(level.layers.geometry)
-    for id, atlas in pairs(resource.atlas.color) do
-      local normal = resource.atlas.normal[id]
-      if normal then cubeshad:send("normals", normal) end
-      gfx.draw(atlas)
+    local f = function()
+      level:drawLayer(level.layers.geometry)
     end
+    drawing.draw{f}
+    --for id, atlas in pairs(resource.atlas.color) do
+    --  local normal = resource.atlas.normal[id]
+  --    if normal then cubeshad:send("normals", normal) end
+  --    gfx.draw(atlas)
+  --  end
+    drawing.run{drawer.gobbles}
+    drawing.run{drawer.sfx, bloom = true}
+    f = function()
+      gfx.setColor(0, 0, 255, 255)
+      gfx.rectangle("fill", 150, 50, 20, 20)
+      gfx.setColor(0, 255, 0, 255)
+      gfx.rectangle("fill", 130, 50, 20, 20)
+      gfx.setColor(255, 0, 0, 255)
+      gfx.rectangle("fill", 110, 50, 20, 20)
+    end
+    drawing.draw{f, bloom = true}
   end
   -- Clear canvas
-  gfx.setCanvas(fb.colormap, fb.normalmap)
-  gfx.clear({255, 255, 255, 255}, {0, 0, 0, 0})
-  gfx.setBackgroundColor(255, 255, 255, 255)
+  drawing.init()
+  --gfx.setCanvas(fb.colormap, fb.normalmap, fb.bloommap)
+  --gfx.clear({255, 255, 255, 255}, {0, 0, 0, 0}, {0, 0, 0, 0})
+  --gfx.setBackgroundColor(255, 255, 255, 255)
   -- Draw background onto color map
-  gfx.setCanvas(fb.colormap)
-  gfx.setShader()
-  level:drawLayer(level.layers.background)
-  for bgobj, _ in pairs(tag.background) do
+  --gfx.setCanvas(fb.colormap)
+  --gfx.setShader(cubeshad)
+  --level:drawLayer(level.layers.background)
+  drawing.draw{function()
+    level:drawLayer(level.layers.background)
+  end, background = true}
+  for bgobj, _ in pairs(gamedata.tag.background) do
     local draw = gamedata.radiometry.draw[bgobj]
     if draw then coroutine.resume(draw, bgobj) end
   end
@@ -91,29 +131,57 @@ function love.draw()
     gfx.draw(atlas)
     atlas:clear()
   end
-  gfx.setCanvas(fb.colormap, fb.normalmap)
-  for ent, _ in pairs(tag.entity) do
+  --gfx.setCanvas(fb.colormap, fb.normalmap, fb.bloommap)
+  for ent, _ in pairs(gamedata.tag.entity) do
+    local draw = gamedata.radiometry.draw[ent]
+    if draw then
+      coroutine.resume(draw, ent)
+    end
+  end
+  for ent, _ in pairs(gamedata.tag.sfx) do
     local draw = gamedata.radiometry.draw[ent]
     if draw then
       coroutine.resume(draw, ent)
     end
   end
   --level:draw(level.layers.background)
-  gfx.setShader(cubeshad)
-  cubeshad:send("normals", dnmap)
+  --gfx.setShader(cubeshad)
   scene()
-  gfx.setCanvas()
+  local cmap, nmap, bmap, smap = drawing.get_canvas()
+  --gfx.setCanvas(fb.scenemap)
+  gfx.setCanvas(smap)
+  gfx.clear()
   gfx.setShader()
   gfx.setBackgroundColor(0, 0, 0, 0)
   if true then
-    for lightid, _ in pairs(tag.point_light) do
-      light.draw_point(lightid, scene, fb.colormap, fb.normalmap)
+    for lightid, _ in pairs(gamedata.tag.point_light) do
+      light.draw_point(lightid, scene, cmap, nmap)
     end
     -- Draw ambient
-    light.draw_ambient(fb.colormap, {100, 100, 255}, 0.4)
+    light.draw_ambient(cmap, {100, 100, 255}, 0.4)
+    -- Draw bloom
+    --gfx.origin()
+    --gfx.draw(fb.glowmap)
+    gfx.setCanvas()
+    light.bloom(smap, bmap)
   else
+    gfx.push()
     gfx.origin()
-    gfx.draw(fb.colormap)
+    gfx.setShader()
+    gfx.setCanvas()
+    gfx.setColor(255, 255, 255, 255)
+    gfx.draw(nmap)
+    gfx.pop()
+  end
+  if renderbox.do_it then
+    gfx.setColor(255, 255, 255, 200)
+    local spa = gamedata.spatial
+    for id, _ in pairs(gamedata.tag.entity) do
+      gfx.rectangle(
+        "line", spa.x[id] - spa.width[id], -spa.y[id] - spa.height[id],
+        spa.width[id] * 2, spa.height[id] * 2
+      )
+    end
   end
   for _, atlas in pairs(resource.atlas.color) do
     atlas:clear()

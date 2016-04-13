@@ -18,6 +18,14 @@ local function loadshader(path, path2)
   end
 end
 
+local function loadshaderfile(path)
+  path = "resource/shader/" .. path
+  local f = io.open(path, "rb")
+  local fstring = f:read("*all")
+  f:close()
+  return fstring
+end
+
 
 light = {}
 -- Stores framebuffers
@@ -31,6 +39,11 @@ function light.create_fb(gamedata, width, height, occres, rays, raystep)
   fb.shadowmap = gfx.newCanvas(rays, 1, 'rg32f')
   --fb.colormap = gfx.newCanvas(width, height)
   --fb.normalmap = gfx.newCanvas(width, height)
+  local bs = 0.25
+  fb.bloom_front = gfx.newCanvas(width * bs, height * bs)
+  fb.bloom_front:setFilter("linear", "linear")
+  fb.bloom_back = gfx.newCanvas(width * bs, height * bs)
+  fb.bloom_back:setFilter("linear", "linear")
 end
 function light.create_quad(gamedata, occres, rays, raysteps)
   mesh.polarquad = gfx.newQuad(0, 0, rays, raysteps, occres, occres)
@@ -47,6 +60,11 @@ function light.create_shader(gamedata)
   shaders.wrap = loadshader("polarwrap.glsl")
   shaders.pcast = loadshader("polarcast.glsl")
   shaders.smap = loadshader("shadowmap.glsl")
+  -- Create blurring shaders
+  local blur_str = loadshaderfile("blur.glsl")
+  shaders.vblur = gfx.newShader("#define VERTICAL\n" .. blur_str)
+  shaders.hblur = gfx.newShader("#define HORIZONTAL\n" .. blur_str)
+  shaders.bloom_combo = loadshader("bloom_combine.glsl")
 end
 
 function light.create_mesh(gamedata)
@@ -157,5 +175,51 @@ function light.draw_ambient(colormap, color, intensity)
   gfx.setColor(r, g, b, 255 * intensity)
   gfx.origin()
   gfx.draw(colormap)
+  gfx.pop()
+end
+
+function light.bloom(scenemap, bloom_map)
+  local m = mesh.light
+  local w = fb.bloom_front:getWidth()
+  local h = fb.bloom_front:getHeight()
+  -- Store previous state
+  local prev_canvas = gfx.getCanvas()
+  gfx.push()
+  gfx.origin()
+  -- Draw to subsampled framebuffer
+  gfx.setColor(255, 255, 255)
+  gfx.setCanvas(fb.bloom_front)
+  gfx.clear()
+  gfx.setShader()
+  m:setTexture(bloom_map)
+  gfx.draw(m, 0, 0, 0, w, h)
+  gfx.setBlendMode("alpha")
+  for i = 1,5 do
+    -- Vertical blur
+    gfx.setCanvas(fb.bloom_back)
+    gfx.clear()
+    gfx.setShader(shaders.vblur)
+    shaders.vblur:send("inv_y", 1.0 / h)
+    m:setTexture(fb.bloom_front)
+    gfx.draw(m, 0, 0, 0, w, h)
+    -- Horizontal blur
+    gfx.setCanvas(fb.bloom_front)
+    gfx.clear()
+    gfx.setShader(shaders.hblur)
+    shaders.hblur:send("inv_x", 1.0 / w)
+    m:setTexture(fb.bloom_back)
+    gfx.draw(m, 0, 0, 0, w, h)
+  end
+  gfx.setBlendMode("alpha")
+  -- Restore previos state
+  gfx.setCanvas(prev_canvas)
+  gfx.setShader(shaders.bloom_combo)
+  shaders.bloom_combo:send("blur_tex", fb.bloom_front)
+  shaders.bloom_combo:send("bloom_tex", bloom_map)
+  shaders.bloom_combo:send("exposure", 0.8)
+  gfx.draw(scenemap)
+  gfx.setShader()
+  --gfx.draw(fb.bloom_front)
+  --gfx.draw(bloom_map)
   gfx.pop()
 end

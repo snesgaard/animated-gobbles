@@ -58,8 +58,8 @@ function init.lantern_A(gd, id, x, y)
   radiometry.color[id] = {243, 156, 31}
   radiometry.draw[id] = lantern_A.draw()
 
-  tag.point_light[id] = true
-  tag.background[id] = true
+  gamedata.tag.point_light[id] = true
+  gamedata.tag.background[id] = true
 end
 
 function parser.lantern_A(obj)

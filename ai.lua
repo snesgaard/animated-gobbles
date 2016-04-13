@@ -111,3 +111,27 @@ function ai.on_ground(id)
   local t = system.time
   return g and t - g < buffer
 end
+
+function ai.constant_hspeed(vx)
+  return coroutine.create(function(id)
+    local spa = gamedata.spatial
+    while true do
+      spa.vx[id] = vx * spa.face[id]
+      do_action()
+      coroutine.yield()
+    end
+  end)
+end
+
+function ai.do_nothing_for(time)
+  local t = system.time
+  while system.time - t < time do coroutine.yield() end
+end
+
+function ai.do_for(time, f)
+  local t = system.time
+  while system.time - t < time do
+    local args = {f()}
+    coroutine.yield(unpack(args))
+  end
+end

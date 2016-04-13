@@ -64,14 +64,23 @@ gamedata = createresource({
     defense = {},
     attack = {},
     invincibility = {},
+  },
+  tag = {
+    point_light = {},
+    entity = {},
+    background = {},
+    particle = {},
+    sfx = {}
   }
 })
 
-tag = {
-  point_light = {},
-  entity = {},
-  background = {},
-}
+function freegamedata(id)
+  for _, subtab in pairs(gamedata) do
+    for _, subsubtab in pairs(subtab) do
+      subsubtab[id] = nil
+    end
+  end
+end
 
 resource = {
   hitbox = createresource({
@@ -94,6 +103,7 @@ resource = {
   images = createresource({}),
   shader = createresource({}),
   mesh = createresource({}),
+  particle = createresource({}),
   atlas = createresource({
     color = {},
     normal = {},

@@ -60,6 +60,7 @@ function animation.draw(atid, anid, time, type, from, to)
 
   local f = function(dt, x, y, r, sx, sy)
     local t = ft
+    --dt = 0
     while true do
       while t > 0 do
         t = t - dt

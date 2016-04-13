@@ -24,12 +24,12 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
 {
     vec2 polar = cart2polar((texture_coords - vec2(0.5)) * 2);
 
-    vec2 blur = vec2((1./800.0)  * smoothstep(0., 1., polar.y), 0);
+    vec2 blur = vec2(inv_screen.y  * smoothstep(0., 1., polar.y), 0);
 
     //now we use a simple gaussian blur
     float sum = 0.0;
     vec2 centeruv = vec2(polar.x / M_PI * 0.5, 0.5);
-    float bias = -0.002;
+    float bias = -0.006;
     //float bias = -0.002;
     sum += step(polar.y + bias, Texel(texture, centeruv - 4.0 * blur).r) * 0.05;
     sum += step(polar.y + bias, Texel(texture, centeruv - 3.0 * blur).r) * 0.09;
@@ -69,5 +69,5 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
     }
     //sum = 1;
 
-    return color * vec4(cm, diffuse * att * sum * 0.8);
+    return color * vec4(cm, diffuse * att * sum * 1.8);
 }

@@ -118,7 +118,6 @@ function furnace_blade.load(atlas, anime, initanime)
   _atlas = atlas
   _anime = anime
   initanime("furnace_blade_A", 15, 33, 54)
-  initanime("furnace_blade_A_blast", 12, 10, 54)
   initanime("furnace_blade_blast", 3, 13, 22)
 
   _blast_atlas, bindex = sfx.get_atlas_a()

@@ -1,3 +1,6 @@
+local weapon_path = "actor/gobbles/"
+local furnace_blade = require(weapon_path .. "furnace_blade")
+
 require "ai"
 
 -- Defines
@@ -11,12 +14,14 @@ local atlas
 local anime = {}
 local hitbox = {}
 
+
 local key = {
   left = "left",
   right = "right",
   down = "down",
   runtoggle = "lalt",
-  jump = "space"
+  jump = "space",
+  attack1 = "a"
 }
 
 --[[
@@ -46,13 +51,6 @@ local control = {}
 local function no_action(id)
   do_action()
   return no_action(coroutine.yield())
-end
-
-local function check_thin_platform(id)
-  local xl = gd.spatial.x[id] - gd.spatial.width[id]
-  local xu = gd.spatial.x[id] + gd.spatial.width[id]
-  local y = gd.spatial.y[id] - gd.spatial.height[id] - 1
-  return tilemap.all_of_type(level, "geometry", xl, xu, y, y, "thin")
 end
 
 function action.constant_hspeed(vx)
@@ -109,7 +107,7 @@ function control.run(draw, id)
   if input.ispressed(key.jump) and ai.on_ground(id) then
     input.latch(key.jump)
     gd.spatial.ground[id] = nil
-    if input.isdown(key.down) and check_thin_platform(id) then
+    if input.isdown(key.down) and map_geometry.check_thin_platform(id) then
       gd.spatial.y[id] = gd.spatial.y[id] - 1
     else
       gd.spatial.vy[id] = jumpspeed
@@ -148,10 +146,15 @@ function control.init_movement(id)
   return control.movement(co, id)
 end
 function control.movement(co, id)
+  if input.ispressed(key.attack1) and ai.on_ground(id) then
+    --input.latch(key.attack1)
+    furnace_blade.idle_init(id, key.attack1)
+    return control.movement(co, id)
+  end
   if input.ispressed(key.jump) and ai.on_ground(id) then
     input.latch(key.jump)
     gd.spatial.ground[id] = nil
-    if input.isdown(key.down) and check_thin_platform(id) then
+    if input.isdown(key.down) and map_geometry.check_thin_platform(id) then
       gd.spatial.y[id] = gd.spatial.y[id] - 1
     else
       gd.spatial.vy[id] = jumpspeed
@@ -216,6 +219,9 @@ function loader.gobbles()
       height * 2, "ally"
     )
   }
+  furnace_blade.load(atlas, anime, initanime)
+
+  drawer.gobbles = drawing.from_atlas(atlas)
 end
 
 function init.gobbles(gd, id, x, y)
@@ -230,7 +236,7 @@ function init.gobbles(gd, id, x, y)
     --gd.ai.control[id] = coroutine.create(control.init_idle)
     gd.ai.control[id] = coroutine.create(control.init_movement)
     --gd.ai.action[id] = action.constant_hspeed(100)
-    tag.entity[id] = true
+    gamedata.tag.entity[id] = true
 end
 
 function parser.gobbles(obj)
