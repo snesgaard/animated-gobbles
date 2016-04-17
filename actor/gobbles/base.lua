@@ -135,6 +135,7 @@ function control.init_movement(id)
   local co = {
     draw = {
       idle = animation.entitydrawer(id, atlas, anime.idle, 0.75),
+      --idle = animation.entitydrawer(id, atlas, anime.furnace_blade_B, 0.75),
       walk = animation.entitydrawer(id, atlas, anime.walk, 1.0),
       arial = arial_draw()
     },

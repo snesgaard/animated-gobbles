@@ -12,11 +12,10 @@ void effects(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
     }
     if (tex.a < 0.95 || bloom) {
         love_Canvases[2] = vec4(color.rgb * tex.rgb, 1);
-        //love_Canvases[0] = vec4(color.rgb, 1) * tex;
     } else {
-        love_Canvases[2] = vec4(0);
+        love_Canvases[2] = vec4(vec3(0), 1);
     }
-    if (tex.a >= 0.95) {
+    if (tex.a >= 0.75) {
         love_Canvases[0] = vec4(color.rgb, 1) * tex;
         // Write normals
         //love_Canvases[1] = vec4(1);
