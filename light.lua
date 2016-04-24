@@ -39,7 +39,7 @@ function light.create_fb(gamedata, width, height, occres, rays, raystep)
   fb.shadowmap = gfx.newCanvas(rays, 1, 'rg32f')
   --fb.colormap = gfx.newCanvas(width, height)
   --fb.normalmap = gfx.newCanvas(width, height)
-  local bs = 0.25
+  local bs = 0.2
   fb.bloom_front = gfx.newCanvas(width * bs, height * bs)
   fb.bloom_front:setFilter("linear", "linear")
   fb.bloom_back = gfx.newCanvas(width * bs, height * bs)
@@ -220,6 +220,7 @@ function light.bloom(scenemap, bloom_map)
   gfx.draw(scenemap)
   gfx.setShader()
   --gfx.draw(fb.bloom_front)
+  --gfx.draw(scenemap)
   --gfx.draw(bloom_map)
   gfx.pop()
 end

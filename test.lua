@@ -39,6 +39,7 @@ function love.load()
   light.create_dynamic(gamedata, gfx.getWidth(), gfx.getHeight(), 200, 400, 400)
   light.create_static(gamedata)
   cubeshad = loadshader("resource/shader/cube.glsl", "resource/shader/cube_vert.glsl")
+  primshad = loadshader("resource/shader/primitives.glsl")
   dnmap = gfx.newImage("resource/tileset/no_normal.png")
   fb.colormap = gfx.newCanvas(width, height)
   fb.scenemap = gfx.newCanvas(width, height)
@@ -72,12 +73,6 @@ end
 
 function love.update(dt)
   -- Clean resources for next
-  --for _, atlas in pairs(resource.atlas) do
-  --  atlas.color:clear()
-  --end
-  --for id, ctrl in pairs(gamedata.actor.control) do
-  --  coroutine.resume(ctrl, gamedata, id)
-  --end
   update.system(dt)
   for id, co in pairs(gamedata.ai.control) do
     coroutine.resume(co, id)
@@ -90,36 +85,15 @@ end
 function love.draw()
   camera.transformation(camera_id, level)
   local scene = function()
-    local f = function()
+    drawing.draw{function()
       level:drawLayer(level.layers.geometry)
-    end
-    drawing.draw{f}
-    --for id, atlas in pairs(resource.atlas.color) do
-    --  local normal = resource.atlas.normal[id]
-  --    if normal then cubeshad:send("normals", normal) end
-  --    gfx.draw(atlas)
-  --  end
+    end}
     drawing.run{drawer.gobbles}
     drawing.run{drawer.sfx, bloom = true}
-    f = function()
-      gfx.setColor(0, 0, 255, 255)
-      gfx.rectangle("fill", 150, 50, 20, 20)
-      gfx.setColor(0, 255, 0, 255)
-      gfx.rectangle("fill", 130, 50, 20, 20)
-      gfx.setColor(255, 0, 0, 255)
-      gfx.rectangle("fill", 110, 50, 20, 20)
-    end
-    drawing.draw{f, bloom = true}
   end
   -- Clear canvas
   drawing.init()
-  --gfx.setCanvas(fb.colormap, fb.normalmap, fb.bloommap)
-  --gfx.clear({255, 255, 255, 255}, {0, 0, 0, 0}, {0, 0, 0, 0})
-  --gfx.setBackgroundColor(255, 255, 255, 255)
-  -- Draw background onto color map
-  --gfx.setCanvas(fb.colormap)
-  --gfx.setShader(cubeshad)
-  --level:drawLayer(level.layers.background)
+  --- Draw background
   drawing.draw{function()
     level:drawLayer(level.layers.background)
   end, background = true}
@@ -127,11 +101,11 @@ function love.draw()
     local draw = gamedata.radiometry.draw[bgobj]
     if draw then coroutine.resume(draw, bgobj) end
   end
-  for _, atlas in pairs(resource.atlas.color) do
-    gfx.draw(atlas)
-    atlas:clear()
-  end
+  lantern_A.draw()
+  lantern_A.clear()
+  gfx.setColor(255, 255, 255, 255)
   --gfx.setCanvas(fb.colormap, fb.normalmap, fb.bloommap)
+  -- Draw foreground
   for ent, _ in pairs(gamedata.tag.entity) do
     local draw = gamedata.radiometry.draw[ent]
     if draw then
@@ -158,7 +132,7 @@ function love.draw()
       light.draw_point(lightid, scene, cmap, nmap)
     end
     -- Draw ambient
-    light.draw_ambient(cmap, {100, 100, 255}, 0.4)
+    light.draw_ambient(cmap, {100, 100, 255}, 0.1)
     -- Draw bloom
     --gfx.origin()
     --gfx.draw(fb.glowmap)
