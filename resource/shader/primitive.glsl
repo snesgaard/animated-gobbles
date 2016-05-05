@@ -1,24 +1,36 @@
-uniform bool background;
-uniform bool bloom;
+uniform bool _is_opague;
+uniform bool _is_glow;
+uniform bool _is_sfx;
 
 void effects(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
 {
-    // Write color
-    vec4 tex = color;
-    if (tex.a < 0.1){
-        discard;
+    // Here we assign the stencil
+    #ifdef STENCIL
+    #endif
+    // THis is for drawing occluders for light rendering
+    #ifdef OCCLUSION
+    if (!_is_opague) discard;
+    love_Canvases[0] = vec4(1.0);
+    #endif
+
+    // This is the default case, where we assign color,
+    // It is assummed that the canvas are bound in following order
+    // love_Canvases = {
+    //      scene,
+    //      color,
+    //      glow,
+    //      normal,
+    // }
+    #ifdef COLOR
+    if (_is_sfx) {
+        love_Canvases[0] = color;
     }
-    if (tex.a < 0.95 || bloom) {
-        love_Canvases[2] = vec4(tex.rgb, 1);
-    } else {
-        love_Canvases[2] = vec4(vec3(0), 1);
+    if (_is_glow) {
+        love_Canvases[2] = vec4(color.rgb, 1.0);
     }
-    if (tex.a >= 0.75) {
-        love_Canvases[0] = vec4(tex.rgb, 1);
-        // Write normals
-        //love_Canvases[1] = vec4(1);
-        if (!background) {
-            love_Canvases[1] = vec4(0, 0, 0, 1);
-        }
+    if (_is_opague) {
+        love_Canvases[1] = color;
+        love_Canvases[3] = vec4(vec2(0), vec2(1));
     }
+    #endif
 }

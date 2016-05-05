@@ -12,6 +12,7 @@ function camera.transformation(id, level)
   local sx = gfx.getWidth() / cw
   local sy = gfx.getHeight() / ch
   gfx.scale(sx, sy)
+  ---gfx.scale(2, 2)
   local cx, cy = gamedata.spatial.x[id], gamedata.spatial.y[id]
   if level then
     cx, cy = camera.limit_map(id, level)

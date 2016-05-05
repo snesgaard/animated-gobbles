@@ -8,8 +8,9 @@ require "io"
 require "light"
 require "math"
 require "camera"
-require "draw"
+require "draw_engine"
 require "sfx"
+require "debug_console"
 
 require "actor/gobbles/base"
 require "prop/latern_A"
@@ -23,13 +24,12 @@ function love.load()
   camera_id = setdefaults()
   gamedata.ai.control[camera_id] = camera.wobble(0, 0)
   level = sti.new("resource/test3.lua")
-  table.foreach(level.layers.geometry, print)
   renderbox.do_it = false
   -- Load entity
+  loader.draw_engine()
   loader.sfx()
   loader.gobbles()
   loader.lantern_A()
-  loader.drawing()
   --loader.blast()
   --love.event.quit()
   --initresource(gamedata, init.lantern_A, 300, -80)
@@ -39,7 +39,7 @@ function love.load()
   light.create_dynamic(gamedata, gfx.getWidth(), gfx.getHeight(), 200, 400, 400)
   light.create_static(gamedata)
   cubeshad = loadshader("resource/shader/cube.glsl", "resource/shader/cube_vert.glsl")
-  primshad = loadshader("resource/shader/primitives.glsl")
+  --primshad = loadshader("resource/shader/primitives.glsl")
   dnmap = gfx.newImage("resource/tileset/no_normal.png")
   fb.colormap = gfx.newCanvas(width, height)
   fb.scenemap = gfx.newCanvas(width, height)
@@ -55,7 +55,6 @@ function love.load()
       initresource(gamedata, type_init, unpack(args))
     end
   end
-
   --initresource(gamedata, init.blast, 100, 100)
 end
 
@@ -84,80 +83,126 @@ end
 
 function love.draw()
   camera.transformation(camera_id, level)
-  local scene = function()
-    drawing.draw{function()
-      level:drawLayer(level.layers.geometry)
-    end}
-    drawing.run{drawer.gobbles}
-    drawing.run{drawer.sfx, bloom = true}
-  end
   -- Clear canvas
-  drawing.init()
-  --- Draw background
-  drawing.draw{function()
-    level:drawLayer(level.layers.background)
-  end, background = true}
-  for bgobj, _ in pairs(gamedata.tag.background) do
-    local draw = gamedata.radiometry.draw[bgobj]
-    if draw then coroutine.resume(draw, bgobj) end
+  local scenemap, colormap, glowmap, normalmap = draw_engine.get_canvas()
+  gfx.setCanvas(scenemap, colormap, glowmap, normalmap)
+  gfx.clear({0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0})
+  gfx.setStencilTest()
+
+  for id, _ in pairs(gamedata.tag.entity) do
+    local draw = gamedata.radiometry.draw[id]
+    if draw then coroutine.resume(draw, id) end
   end
-  lantern_A.draw()
+  for id, _ in pairs(gamedata.tag.sfx) do
+    local draw = gamedata.radiometry.draw[id]
+    if draw then coroutine.resume(draw, id) end
+  end
+  local sqdraw = draw_engine.create_primitive(function()
+    gfx.setColor(255, 255, 255, 255)
+    gfx.rectangle("fill", 100, 180, 100, 20)
+  end, false, true)
+  local leveldraw = draw_engine.create_level(level, "geometry")
+  local bgdraw = draw_engine.create_level(level, "background")
+  -- SFX
+  goobles_drawing_stuff.color(false)
+  draw_engine.type_drawer.sfx.color(false)
+  sqdraw.color()
+  gfx.setStencilTest("equal", 0)
+  gfx.stencil(function()
+    goobles_drawing_stuff.stencil(false)
+    sqdraw.stencil(false)
+    draw_engine.type_drawer.sfx.stencil(false)
+    --draw_engine.type_drawer.sfx.stencil(false)
+  end, "replace", 2, false)
+  -- Foreground
+      gfx.setBlendMode("alpha")
+  leveldraw.color(true)
+  goobles_drawing_stuff.color(true)
+  -- Draw ambient light
+  gfx.setBlendMode("alpha")
+  draw_engine.ambient(scenemap, colormap, {100, 100, 255, 255}, 0.4)
+  gfx.setBlendMode("add")
+  gfx.stencil(function()
+    goobles_drawing_stuff.stencil(true)
+    leveldraw.stencil(true)
+  end, "replace", 1, true)
+  gfx.setStencilTest("equal", 1)
+  -- Now do light rendering
+  for id, _ in pairs(gamedata.tag.point_light) do
+    draw_engine.foreground_shading(id, scenemap, colormap, normalmap)
+  end
+  -- Now for the background
+  -- Clear all drawers for the foreground
+  -- TODO: Make this more type oriented like the above
+  for _, atlas in pairs(resource.atlas.color) do atlas:clear() end
+  --
+  gfx.setCanvas(scenemap, colormap, glowmap, normalmap)
+  for id, _ in pairs(gamedata.tag.background) do
+    local draw = gamedata.radiometry.draw[id]
+    if draw then coroutine.resume(draw, id) end
+  end
+  -- Do sfx first
+  gfx.setStencilTest("equal", 0)
+  gfx.setBlendMode("alpha")
+  draw_engine.type_drawer.lantern_A_glow.color(false)
+  gfx.setBlendMode("alpha")
+  bgdraw.color(true)
+  draw_engine.type_drawer.lantern_A.color(true)
+  gfx.setBlendMode("screen")
+  draw_engine.ambient(scenemap, colormap, {100, 100, 255, 255}, 0.2)
+
+  local occlusion = function()
+    leveldraw.occlusion()
+    goobles_drawing_stuff.occlusion(true)
+  end
+
+  for id, _ in pairs(gamedata.tag.point_light) do
+    draw_engine.background_shadows(id, scenemap, colormap, normalmap, occlusion)
+  end
   lantern_A.clear()
-  gfx.setColor(255, 255, 255, 255)
-  --gfx.setCanvas(fb.colormap, fb.normalmap, fb.bloommap)
-  -- Draw foreground
-  for ent, _ in pairs(gamedata.tag.entity) do
-    local draw = gamedata.radiometry.draw[ent]
-    if draw then
-      coroutine.resume(draw, ent)
-    end
-  end
-  for ent, _ in pairs(gamedata.tag.sfx) do
-    local draw = gamedata.radiometry.draw[ent]
-    if draw then
-      coroutine.resume(draw, ent)
-    end
-  end
-  --level:draw(level.layers.background)
-  --gfx.setShader(cubeshad)
-  scene()
-  local cmap, nmap, bmap, smap = drawing.get_canvas()
-  --gfx.setCanvas(fb.scenemap)
-  gfx.setCanvas(smap)
-  gfx.clear()
-  gfx.setShader()
-  gfx.setBackgroundColor(0, 0, 0, 0)
-  if true then
-    for lightid, _ in pairs(gamedata.tag.point_light) do
-      light.draw_point(lightid, scene, cmap, nmap)
-    end
-    -- Draw ambient
-    light.draw_ambient(cmap, {100, 100, 255}, 0.1)
-    -- Draw bloom
-    --gfx.origin()
-    --gfx.draw(fb.glowmap)
+  draw_engine.glow(glowmap)
+  if not debug.buffer_view then
+    draw_engine.final_render(scenemap, glowmap)
+
+    gfx.setBlendMode("screen")
     gfx.setCanvas()
-    light.bloom(smap, bmap)
-  else
-    gfx.push()
     gfx.origin()
     gfx.setShader()
-    gfx.setCanvas()
-    gfx.setColor(255, 255, 255, 255)
-    gfx.draw(nmap)
-    gfx.pop()
-  end
-  if renderbox.do_it then
-    gfx.setColor(255, 255, 255, 200)
-    local spa = gamedata.spatial
-    for id, _ in pairs(gamedata.tag.entity) do
-      gfx.rectangle(
-        "line", spa.x[id] - spa.width[id], -spa.y[id] - spa.height[id],
-        spa.width[id] * 2, spa.height[id] * 2
-      )
+    gfx.setStencilTest()
+
+    for id, _ in pairs(gamedata.tag.ui) do
+      local draw = gamedata.radiometry.draw[id]
+      if draw then
+        local status, _ = coroutine.resume(draw, id)
+        if coroutine.status(draw) == "dead" then
+          gamedata.radiometry.draw[id] = nil
+        end
+      end
     end
+  else
+    gfx.setBlendMode("screen")
+    gfx.setCanvas()
+    gfx.origin()
+    gfx.setShader()
+    gfx.setStencilTest()
+    gfx.setColor(255, 255, 255, 255)
+    local w, h = 1920 * 0.5, 1080 * 0.5
+    gfx.draw(scenemap, 0, 0, 0, 0.5, 0.5)
+    gfx.draw(colormap, w, 0, 0, 0.5, 0.5)
+    gfx.draw(glowmap, 0, h, 0, 0.5, 0.5)
+    gfx.draw(normalmap, w, h, 0, 0.5, 0.5)
+    gfx.rectangle("line", 0, 0, w, h)
+    gfx.rectangle("line", w, 0, w, h)
+    gfx.rectangle("line", 0, h, w, h)
+    gfx.rectangle("line", w, h, w, h)
+    gfx.print("Scene", 1, 1)
+    gfx.print("Color", w + 1, 1)
+    gfx.print("Glow", 1, h + 1)
+    gfx.print("Normals", w + 1, h + 1)
+    gfx.print(string.format("FPS %f", 1.0 / system.dt), 300)
   end
-  for _, atlas in pairs(resource.atlas.color) do
-    atlas:clear()
-  end
+  gfx.setCanvas()
+  gfx.origin()
+  gfx.setShader()
+  gfx.setBlendMode("alpha")
 end

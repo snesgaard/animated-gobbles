@@ -203,7 +203,6 @@ function furnace_blade.load(atlas, anime, initanime)
   initanime("furnace_blade_blast", 3, 13, 22)
 
   _blast_atlas, bindex = sfx.get_atlas_a()
-  print(_blast_atlas)
   local bsheet = resource.atlas.color[_blast_atlas]:getTexture()
   local function initblastanime(key, frames, ox, oy)
     _blast_anime[key] = initresource(

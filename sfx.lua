@@ -12,7 +12,9 @@ function loader.sfx()
   end)
   _index_a = require "resource/sfx/A"
 
-  drawer.sfx = drawing.from_atlas(_atlas_a)
+  --drawer.sfx = drawing.from_atlas(_atlas_a)
+  local drawer = draw_engine.create_atlas(_atlas_a)
+  draw_engine.register_type("sfx", drawer)
 end
 
 function sfx.get_atlas_a()

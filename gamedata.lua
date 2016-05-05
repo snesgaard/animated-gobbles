@@ -70,7 +70,8 @@ gamedata = createresource({
     entity = {},
     background = {},
     particle = {},
-    sfx = {}
+    sfx = {},
+    ui = {},
   }
 })
 

@@ -7,5 +7,4 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
     vec2 s = vec2(r * cos(t), r * sin(t));
     s = (s + vec2(1)) * 0.5;
     return Texel(texture, s);
-    return vec4(s, 0.0 ,1.0);
 }

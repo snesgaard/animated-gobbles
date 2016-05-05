@@ -222,7 +222,9 @@ function loader.gobbles()
   }
   furnace_blade.load(atlas, anime, initanime)
 
-  drawer.gobbles = drawing.from_atlas(atlas)
+  --drawer.gobbles = drawing.from_atlas(atlas)
+  -- HACK
+  goobles_drawing_stuff = draw_engine.create_atlas(atlas)
 end
 
 function init.gobbles(gd, id, x, y)

@@ -8,9 +8,9 @@ lantern_A = {}
 local flares = {}
 
 local base_width = 100
-local flicker_amp = 7
+local flicker_amp = 2
 local base_height = 3
-local flare_amp = 0.75
+local flare_amp = 0.2
 
 local function draw_flare(id)
   local spa = gamedata.spatial
@@ -66,8 +66,12 @@ function loader.lantern_A()
   animid = initresource(
     resource.animation, animation.init, im, index, 5, 8, 11
   )
-  drawer.lantern_A = drawing.from_atlas(atlas)
-  drawer.lantern_A_flare = drawing.from_function(all_draw_flare)
+
+  local sprite_draw = draw_engine.create_atlas(atlas)
+  local glow_draw = draw_engine.create_primitive(all_draw_flare, false, true)
+
+  draw_engine.register_type("lantern_A", sprite_draw)
+  draw_engine.register_type("lantern_A_glow", glow_draw)
 end
 
 function init.lantern_A(gd, id, x, y)
@@ -77,7 +81,7 @@ function init.lantern_A(gd, id, x, y)
   spatial.width[id] = base_width
 
   local rng = love.math.random
-  gd.ai.control[id] = lantern_A.flicker(id, rng() + 1, rng() * math.pi * 0.5)
+  gd.ai.control[id] = lantern_A.flicker(id, 2 * 3.14 / 0.75, rng() * math.pi * 0.5)
 
   local radiometry = gd.radiometry
   radiometry.color[id] = {243, 156, 31}
@@ -91,11 +95,6 @@ function parser.lantern_A(obj)
   local x = math.floor(obj.x + obj.width * 0.5)
   local y = math.floor(-obj.y + obj.height * 0.5)
   return x, y
-end
-
-function lantern_A.draw()
-  drawing.run{drawer.lantern_A, background = true}
-  drawing.draw_primitive{all_draw_flare, background = true}
 end
 
 function lantern_A.clear()

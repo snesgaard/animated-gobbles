@@ -135,3 +135,10 @@ function ai.do_for(time, f)
     coroutine.yield(unpack(args))
   end
 end
+
+function ai.do_until(condition, action)
+  repeat
+    local args = {action()}
+    coroutine.yield(unpack(args))
+  until condition()
+end
