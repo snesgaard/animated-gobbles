@@ -1,3 +1,5 @@
+require "util"
+require "signal"
 require "setup"
 
 rgame = require "test"

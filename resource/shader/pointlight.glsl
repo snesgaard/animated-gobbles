@@ -47,6 +47,7 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
     sum += step(polar.y + bias, Texel(shadowmap, centeruv + 2.0 * blur).r) * 0.12;
     sum += step(polar.y + bias, Texel(shadowmap, centeruv + 3.0 * blur).r) * 0.09;
     sum += step(polar.y + bias, Texel(shadowmap, centeruv + 4.0 * blur).r) * 0.05;
+
     amp *= sum;
     #endif
     // If blue is not 255, we assume that the normal is valid

@@ -55,7 +55,9 @@ function love.load()
       initresource(gamedata, type_init, unpack(args))
     end
   end
+  --initresource(gamedata, init.gobbles, 200, -100)
   --initresource(gamedata, init.blast, 100, 100)
+
 end
 
 map_geometry = {}
@@ -73,11 +75,13 @@ end
 function love.update(dt)
   -- Clean resources for next
   update.system(dt)
+  signal.send("update", dt)
   for id, co in pairs(gamedata.ai.control) do
     coroutine.resume(co, id)
   end
   update.action(gamedata)
   update.movement(gamedata, level)
+  animation.update()
   --coroutine.resume(animatelight, gamedata, lightids)
 end
 
@@ -100,7 +104,7 @@ function love.draw()
   local sqdraw = draw_engine.create_primitive(function()
     gfx.setColor(255, 255, 255, 255)
     gfx.rectangle("fill", 100, 180, 100, 20)
-  end, false, true)
+  end, false, true, true)
   local leveldraw = draw_engine.create_level(level, "geometry")
   local bgdraw = draw_engine.create_level(level, "background")
   -- SFX
@@ -115,7 +119,7 @@ function love.draw()
     --draw_engine.type_drawer.sfx.stencil(false)
   end, "replace", 2, false)
   -- Foreground
-      gfx.setBlendMode("alpha")
+  gfx.setBlendMode("alpha")
   leveldraw.color(true)
   goobles_drawing_stuff.color(true)
   -- Draw ambient light
@@ -134,7 +138,7 @@ function love.draw()
   -- Now for the background
   -- Clear all drawers for the foreground
   -- TODO: Make this more type oriented like the above
-  for _, atlas in pairs(resource.atlas.color) do atlas:clear() end
+  --
   --
   gfx.setCanvas(scenemap, colormap, glowmap, normalmap)
   for id, _ in pairs(gamedata.tag.background) do
@@ -205,4 +209,5 @@ function love.draw()
   gfx.origin()
   gfx.setShader()
   gfx.setBlendMode("alpha")
+  for _, atlas in pairs(resource.atlas.color) do atlas:clear() end
 end

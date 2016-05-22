@@ -72,13 +72,14 @@ function animation.draw(atid, anid, time, type, from, to)
         local a = (sx > 0 or not nh) and 1 or -1
         atlas:setColor(255, 255, 255, 255 * a)
         atlas:add(anime.quads[anid][i], x, y, r, sx, sy)
-        dt, x, y, r, sx, sy = coroutine.yield()
+        dt, x, y, r, sx, sy = coroutine.yield(true)
       end
       t = ft + t
       i = i + dir
       if i > to or i < from then
          i, dir = border(i, dir)
       end
+      -- HACK: Return when animation no longer evolving
     end
   end
   return coroutine.create(f)
@@ -95,10 +96,28 @@ end
 function animation.entitydrawer(id, ...)
   local anime = animation.draw(...)
   local function f(id)
-    animation.entitydraw(id, anime)
+    local status, alive = animation.entitydraw(id, anime)
+    if not alive then
+      signal.send("animation_done@" .. id)
+      return
+    end
     return f(coroutine.yield())
   end
   return coroutine.create(f)
+end
+
+
+local _entity_animations = {}
+function animation.update()
+  for id, co in pairs(_entity_animations) do
+    coroutine.resume(co, id)
+  end
+end
+function animation.play(id, ...)
+  _entity_animations[id] = animation.entitydrawer(id, ...)
+end
+function animation.stop(id)
+  _entity_animations[id] = nil
 end
 
 return animation

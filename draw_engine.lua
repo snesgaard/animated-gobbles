@@ -169,7 +169,7 @@ function draw_engine.create_level(level, layer)
   end)
 end
 
-function draw_engine.create_primitive(draw_func, opague, glow)
+function draw_engine.create_primitive(draw_func, opague, sfx, glow)
   local shader = shaders.primitive
 
   local function stencil(_opague)
@@ -187,7 +187,7 @@ function draw_engine.create_primitive(draw_func, opague, glow)
   local function color()
     gfx.setShader(shader.color)
     shader.color:send("_is_opague", opague)
-    shader.color:send("_is_sfx", not opague)
+    shader.color:send("_is_sfx", sfx)
     shader.color:send("_is_glow", glow)
     draw_func()
   end

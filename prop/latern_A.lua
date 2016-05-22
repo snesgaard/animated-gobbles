@@ -9,7 +9,7 @@ local flares = {}
 
 local base_width = 100
 local flicker_amp = 2
-local base_height = 3
+local base_height = 2
 local flare_amp = 0.2
 
 local function draw_flare(id)
@@ -46,11 +46,12 @@ function lantern_A.flicker(id, freq, phase)
   return coroutine.create(f)
 end
 
-local function create_draw()
-  local anime = animation.draw(atlas, animid, 0.75)
+local function create_draw(id)
+  --local anime = animation.draw(atlas, animid, 0.75)
+  animation.play(id, atlas, animid, 0.75)
   local spatial = gamedata.spatial
   local function f(id)
-    animation.entitydraw(id, anime)
+    --animation.entitydraw(id, anime)
     table.insert(flares, id)
     return f(coroutine.yield())
   end
@@ -68,7 +69,7 @@ function loader.lantern_A()
   )
 
   local sprite_draw = draw_engine.create_atlas(atlas)
-  local glow_draw = draw_engine.create_primitive(all_draw_flare, false, true)
+  local glow_draw = draw_engine.create_primitive(all_draw_flare, false, false, true)
 
   draw_engine.register_type("lantern_A", sprite_draw)
   draw_engine.register_type("lantern_A_glow", glow_draw)
@@ -85,7 +86,7 @@ function init.lantern_A(gd, id, x, y)
 
   local radiometry = gd.radiometry
   radiometry.color[id] = {243, 156, 31}
-  radiometry.draw[id] = create_draw()
+  radiometry.draw[id] = create_draw(id)
 
   gamedata.tag.point_light[id] = true
   gamedata.tag.background[id] = true

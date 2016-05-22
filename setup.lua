@@ -10,7 +10,6 @@ require "statsui"
 require ("modules/functional")
 require "light"
 require "animation"
-require "trail"
 require "camera"
 fun = require "modules/functional"
 
