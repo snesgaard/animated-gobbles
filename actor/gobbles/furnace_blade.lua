@@ -4,6 +4,7 @@ local _anime -- Shared with base
 local _atlas -- Shared with base
 local _blast_atlas
 local _blast_anime = {}
+local _api
 
 -- Defines
 local time = {
@@ -28,7 +29,7 @@ local control = {}
 
 
 
-function slash_a(id)
+function slash_a(id, key)
   animation.play(
     id, _atlas, _anime.furnace_blade_A, time.sA_windup, "once", 1, 6
   )
@@ -42,9 +43,10 @@ local states = {
 
 -- Interface
 local furnace_blade = {}
-function furnace_blade.load(atlas, anime, initanime)
+function furnace_blade.load(atlas, anime, initanime, api)
   _atlas = atlas
   _anime = anime
+  _api = api
   initanime("furnace_blade_A", 15, 33, 54)
   initanime("furnace_blade_B", 7, 20, 54)
   initanime("furnace_blade_blast", 3, 13, 22)
@@ -58,7 +60,7 @@ function furnace_blade.load(atlas, anime, initanime)
     )
   end
   initblastanime("furnace_blast_A", 9, 39, 55)
-  return states
+  return states.slash_a
 end
 
 return furnace_blade

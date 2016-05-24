@@ -22,14 +22,15 @@ local key = {
   down = "down",
   runtoggle = "lalt",
   jump = "space",
-  attack1 = "a"
+  attackA= "a"
 }
 
 local gd = gamedata
 
 local action = {}
 local control = {}
-
+local states = {}
+local api = {}
 -- Parse inputs and returns the newest direction pressed
 -- Right = 1
 -- Left = -1
@@ -68,7 +69,7 @@ local function run(id)
     gd.spatial.face[id] = d
     gd.spatial.vx[id] = runspeed * d
   else
-    signal.send("state@" .. id, "ground_move")
+    signal.send("state@" .. id, states.ground_move)
     return
   end
   return run(id)
@@ -84,9 +85,9 @@ local function run_toggle(id)
   if input.ispressed(key.runtoggle) then
     input.latch(key.runtoggle)
     if math.abs(gd.spatial.vx[id]) == runspeed then
-      signal.send("state@" .. id, "ground_move")
+      signal.send("state@" .. id, states.ground_move)
     else
-      signal.send("state@" .. id, "ground_run")
+      signal.send("state@" .. id, states.ground_run)
     end
     return
   end
@@ -109,33 +110,33 @@ local function arial_animation(id)
   return arial_animation(id)
 end
 
-local function ground2arial(id)
+function api.ground2arial(id)
   signal.wait("update")
   if not ai.on_ground(id) then
     if math.abs(gd.spatial.vx[id]) == runspeed then
-      signal.send("state@" .. id, "arial_run")
+      signal.send("state@" .. id, states.arial_run)
     else
-      signal.send("state@" .. id, "arial_move")
+      signal.send("state@" .. id, states.arial_move)
     end
     return
   end
-  return ground2arial(id)
+  return api.ground2arial(id)
 end
 
-local function arial2ground(id)
+function api.arial2ground(id)
   signal.wait("update")
   if ai.on_ground(id) then
     if math.abs(gd.spatial.vx[id]) == runspeed then
-      signal.send("state@" .. id, "ground_run")
+      signal.send("state@" .. id, states.ground_run)
     else
-      signal.send("state@" .. id, "ground_move")
+      signal.send("state@" .. id, states.ground_move)
     end
     return
   end
-  return arial2ground(id)
+  return api.arial2ground(id)
 end
 
-local function jump(id)
+function api.jump(id)
   signal.wait("update")
   if input.ispressed(key.jump) then
     input.latch(key.jump)
@@ -147,34 +148,55 @@ local function jump(id)
       gd.spatial.vy[id] = runjumpspeed
     end
   end
-  return jump(id)
+  return api.jump(id)
 end
 
-local function weapon_return(id)
-  signal.wait("return")
-  signal.send("state@" .. ground_move)
+function api.get_default_keys()
+  local k = {}
+  k[key.attackA] = key.attackA
+  return k
 end
 
-local states = {
-  ground_move = {ground2arial, run_toggle, movement, jump, ground_animation},
-  ground_run = {ground2arial, run_toggle, run_begin, jump},
-  arial_move = {arial2ground, movement, arial_animation},
-  arial_run = {arial2ground, arial_animation},
+function api.fork_interrupt(id)
+  concurrent.fork(api.jump, id)
+  concurrent.fork(api.ground2arial, id)
+end
+
+local wpn_states = {}
+
+local function wpn_state_listener(id, keys)
+  signal.wait("update")
+  local f
+  for _, key in pairs(keys) do
+    if input.ispressed(key) then
+      local state = wpn_states[key]
+      local function init(id)
+        return state(id, key)
+      end
+      f = init and state or nil
+      break
+    end
+  end
+  if f then signal.send("state@" .. id, f) end
+  return wpn_state_listener(id, keys)
+end
+
+states = {
+  ground_move = {
+    api.ground2arial, run_toggle, movement, api.jump, ground_animation,
+    --function(id) return wpn_state_listener(id, api.get_default_keys()) end
+  },
+  ground_run = {api.ground2arial, run_toggle, run_begin, api.jump},
+  arial_move = {api.arial2ground, movement, arial_animation},
+  arial_run = {api.arial2ground, arial_animation},
 }
 
-local function state_machine(id, state, wpn_state)
-  local next_state_key = signal.wait("state@" .. id)
-  if next_state_key == "stop" then
-    concurrent.join()
-    return
-  end
-  local next_state = state[next_state_key]
-  if next_state then
-    print("state", next_state_key)
-    concurrent.join()
-    map(function(f) concurrent.fork(f, id) end, next_state)
-  end
-  return state_machine(id, state)
+local function state_machine(id)
+  local next_state = signal.wait("state@" .. id)
+  concurrent.join()
+  if next_state == nil then return end
+  map(function(f) concurrent.fork(f, id) end, next_state)
+  return state_machine(id)
 end
 
 function loader.gobbles()
@@ -209,7 +231,8 @@ function loader.gobbles()
       height * 2, "ally"
     )
   }
-  local states = furnace_blade.load(atlas, anime, initanime)
+  local fb_ground = furnace_blade.load(atlas, anime, initanime, api)
+
 
   -- HACK
   goobles_drawing_stuff = draw_engine.create_atlas(atlas)
@@ -227,7 +250,7 @@ function init.gobbles(gd, id, x, y)
     gamedata.tag.entity[id] = true
 
     concurrent.detach(state_machine, id, states)
-    signal.send("state@" .. id, "ground_move")
+    signal.send("state@" .. id, states.ground_move)
 end
 
 function parser.gobbles(obj)
