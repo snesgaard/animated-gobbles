@@ -34,7 +34,7 @@ function slash_a(id, key)
     id, _atlas, _anime.furnace_blade_A, time.sA_windup, "once", 1, 6
   )
   signal.wait("animation_done@" .. id)
-  signal.send("return@" .. id)
+  api.return2base(id)
 end
 
 local states = {

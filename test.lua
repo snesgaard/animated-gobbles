@@ -103,7 +103,7 @@ function love.draw()
   end
   local sqdraw = draw_engine.create_primitive(function()
     gfx.setColor(255, 255, 255, 255)
-    gfx.rectangle("fill", 100, 180, 100, 20)
+    gfx.rectangle("fill", 100, 100, 100, 20)
   end, false, true, true)
   local leveldraw = draw_engine.create_level(level, "geometry")
   local bgdraw = draw_engine.create_level(level, "background")

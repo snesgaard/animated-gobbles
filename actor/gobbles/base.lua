@@ -181,9 +181,22 @@ local function wpn_state_listener(id, keys)
   return wpn_state_listener(id, keys)
 end
 
+function api.wpn_state_listener_init(id, ...)
+  local banned = {...}
+  local keys = api.get_default_keys()
+  for _, key in pairs(banned) do keys[key] = nil end
+  return wpn_state_listener(id, keys)
+end
+
+function api.return2base(id)
+  local next = states.ground_move and ai.on_ground(id) or states.arial_move
+  signal.send("state@" .. id, next)
+end
+
 states = {
   ground_move = {
     api.ground2arial, run_toggle, movement, api.jump, ground_animation,
+    api.wpn_state_listener_init
     --function(id) return wpn_state_listener(id, api.get_default_keys()) end
   },
   ground_run = {api.ground2arial, run_toggle, run_begin, api.jump},
@@ -232,7 +245,7 @@ function loader.gobbles()
     )
   }
   local fb_ground = furnace_blade.load(atlas, anime, initanime, api)
-
+  wpn_states[key.attackA] = fb_ground
 
   -- HACK
   goobles_drawing_stuff = draw_engine.create_atlas(atlas)
