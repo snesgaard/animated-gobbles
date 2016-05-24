@@ -30,7 +30,6 @@ local gd = gamedata
 local action = {}
 local control = {}
 local states = {}
-local api = {}
 -- Parse inputs and returns the newest direction pressed
 -- Right = 1
 -- Left = -1
@@ -50,49 +49,17 @@ local function input_direction()
   return 0
 end
 
-local function movement(id)
-  signal.wait("update")
+local function movement(id, speed)
   local d = input_direction()
   if d ~= 0 then
     gd.spatial.face[id] = d
-    gd.spatial.vx[id] = walkspeed * d
+    gd.spatial.vx[id] = speed * d
   else
     gd.spatial.vx[id] = 0
   end
-  return movement(id)
+  return d
 end
 
-local function run(id)
-  signal.wait("update")
-  local d = input_direction()
-  if d ~= 0 then
-    gd.spatial.face[id] = d
-    gd.spatial.vx[id] = runspeed * d
-  else
-    signal.send("state@" .. id, states.ground_move)
-    return
-  end
-  return run(id)
-end
-local function run_begin(id)
-  animation.play(id, atlas, anime.run, 0.75)
-  return run(id)
-end
-
-
-local function run_toggle(id)
-  signal.wait("update")
-  if input.ispressed(key.runtoggle) then
-    input.latch(key.runtoggle)
-    if math.abs(gd.spatial.vx[id]) == runspeed then
-      signal.send("state@" .. id, states.ground_move)
-    else
-      signal.send("state@" .. id, states.ground_run)
-    end
-    return
-  end
-  return run_toggle(id)
-end
 
 local function ground_animation(id)
   animation.play(id, atlas, anime.idle, 0.75)
@@ -110,33 +77,7 @@ local function arial_animation(id)
   return arial_animation(id)
 end
 
-function api.ground2arial(id)
-  signal.wait("update")
-  if not ai.on_ground(id) then
-    if math.abs(gd.spatial.vx[id]) == runspeed then
-      signal.send("state@" .. id, states.arial_run)
-    else
-      signal.send("state@" .. id, states.arial_move)
-    end
-    return
-  end
-  return api.ground2arial(id)
-end
-
-function api.arial2ground(id)
-  signal.wait("update")
-  if ai.on_ground(id) then
-    if math.abs(gd.spatial.vx[id]) == runspeed then
-      signal.send("state@" .. id, states.ground_run)
-    else
-      signal.send("state@" .. id, states.ground_move)
-    end
-    return
-  end
-  return api.arial2ground(id)
-end
-
-function api.jump(id)
+local function jump(id)
   signal.wait("update")
   if input.ispressed(key.jump) then
     input.latch(key.jump)
@@ -151,79 +92,38 @@ function api.jump(id)
   return api.jump(id)
 end
 
-function api.get_default_keys()
-  local k = {}
-  k[key.attackA] = key.attackA
-  return k
+local function arial2ground(id)
+  if ai.on_ground(id) then
+    state_engine.set(id, states.ground_move)
+  end
 end
 
-function api.fork_interrupt(id)
-  concurrent.fork(api.jump, id)
-  concurrent.fork(api.ground2arial, id)
-end
 
 local wpn_states = {}
 
-local function wpn_state_listener(id, keys)
+local function _ground_move(id)
   signal.wait("update")
-  local f
-  for _, key in pairs(keys) do
-    if input.ispressed(key) then
-      input.latch(key)
-      local state = wpn_states[key]
-      local function init(id)
-        return state(id, key)
-      end
-      f = init and state or nil
-      break
-    end
-  end
-  if f then signal.send("state@" .. id, f)
-    return 
-  end
-  return wpn_state_listener(id, keys)
+  movement(id, walkspeed)
+  return _ground_move(id)
+end
+function states.ground_move(id)
+  concurrent.fork(ground_animation, id)
+  return _ground_move(id)
 end
 
-function api.wpn_state_listener_init(id, ...)
-  local banned = {...}
-  local keys = api.get_default_keys()
-  for _, key in pairs(banned) do keys[key] = nil end
-  return wpn_state_listener(id, keys)
+local function _arial_move(id)
+  signal.wait("update")
+  movement(id, walkspeed)
+  arial2ground(id)
+  return _arial_move(id)
 end
-
-function api.return2base(id)
-  local next = ai.on_ground(id) and states.ground_move or states.arial_move
-  signal.send("state@" .. id, next)
+function states.arial_move(id)
+  concurrent.fork(arial_animation, id)
+  return _arial_move(id)
 end
-
-states = {
-  ground_move = {
-    api.ground2arial, run_toggle, movement, api.jump, ground_animation,
-    api.wpn_state_listener_init
-    --function(id) return wpn_state_listener(id, api.get_default_keys()) end
-  },
-  ground_run = {api.ground2arial, run_toggle, run_begin, api.jump},
-  arial_move = {api.arial2ground, movement, arial_animation},
-  arial_run = {api.arial2ground, arial_animation},
-}
 
 -- NOTE: This state machine design requires that threads do not immidiately send
--- A state change
-local function state_machine(id)
-  local next_state = signal.wait("state@" .. id)
-  concurrent.join()
-  if next_state == nil then return end
-  repeat
-    local state = next_state
-    next_state = nil
-    local co = concurrent.detach(function()
-      next_state = signal.wait("state@" .. id)
-    end)
-    map(function(f) concurrent.fork(f, id) end, state)
-    signal.clear(co)
-  until not next_state
-  return state_machine(id)
-end
+
 
 function loader.gobbles()
   -- Initialize animations
@@ -258,7 +158,7 @@ function loader.gobbles()
     )
   }
   local fb_ground = furnace_blade.load(atlas, anime, initanime, api)
-  wpn_states[key.attackA] = fb_ground
+  --wpn_states[key.attackA] = fb_ground
 
   -- HACK
   goobles_drawing_stuff = draw_engine.create_atlas(atlas)
@@ -275,8 +175,8 @@ function init.gobbles(gd, id, x, y)
 
     gamedata.tag.entity[id] = true
 
-    concurrent.detach(state_machine, id, states)
-    signal.send("state@" .. id, states.ground_move)
+    state_engine.set(id, states.arial_move)
+    --signal.send("state@" .. id, states.ground_move)
 end
 
 function parser.gobbles(obj)

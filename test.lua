@@ -9,6 +9,7 @@ require "light"
 require "math"
 require "camera"
 require "draw_engine"
+require "state_engine"
 require "sfx"
 require "debug_console"
 
@@ -82,6 +83,7 @@ function love.update(dt)
   update.action(gamedata)
   update.movement(gamedata, level)
   animation.update()
+  state_engine.update()
   --coroutine.resume(animatelight, gamedata, lightids)
 end
 

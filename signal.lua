@@ -80,6 +80,9 @@ end
 
 -- Used to join a parent with all it's descendents
 -- This will clear them from all waiting signals and event
+-- BUG: Potential leak if joining a specific coroutine
+-- BUG: Meaning it won't be cleared from it's parent table
+-- Fix by checking for argument and running thread
 function concurrent.join(co)
   co = co or coroutine.running() or "main"
   local c = children[co] or {}
