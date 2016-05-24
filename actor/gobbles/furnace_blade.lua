@@ -30,6 +30,7 @@ local control = {}
 
 
 function slash_a(id, key)
+  gd.spatial.vx[id] = 0
   animation.play(
     id, _atlas, _anime.furnace_blade_A, time.sA_windup, "once", 1, 6
   )
