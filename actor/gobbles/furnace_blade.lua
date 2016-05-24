@@ -34,7 +34,15 @@ function slash_a(id, key)
     id, _atlas, _anime.furnace_blade_A, time.sA_windup, "once", 1, 6
   )
   signal.wait("animation_done@" .. id)
-  api.return2base(id)
+  animation.play(
+    id, _atlas, _anime.furnace_blade_A, time.sA_attack, "once", 7, 11
+  )
+  signal.wait("animation_done@" .. id)
+  animation.play(
+    id, _atlas, _anime.furnace_blade_A, time.sA_recover, "once", 12, 15
+  )
+  signal.wait("animation_done@" .. id)
+  _api.return2base(id)
 end
 
 local states = {

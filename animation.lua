@@ -83,25 +83,25 @@ function animation.draw(atid, anid, time, type, from, to)
       -- HACK: Return when animation no longer evolving
     end
   end
-  return coroutine.create(f)
+  return f
 end
 
-function animation.entitydraw(id, co)
+function animation.entitydraw(id, func)
   local act = gamedata.spatial
   local x = act.x[id]
   local y = act.y[id]
   local f = act.face[id] or 1
-  return coroutine.resume(co, system.dt, x, -y, 0, f, 1)
+  return func(system.dt, x, -y, 0, f, 1)
 end
 
 function animation.entitydrawer(id, ...)
   local anime = animation.draw(...)
+  local g = coroutine.wrap(function(...)
+    anime(...)
+    signal.send("animation_done@" .. id)
+  end)
   local function f(id)
-    local status, alive = animation.entitydraw(id, anime)
-    if not alive then
-      signal.send("animation_done@" .. id)
-      return
-    end
+    animation.entitydraw(id, g)
     return f(coroutine.yield())
   end
   return coroutine.create(f)

@@ -45,6 +45,7 @@ function signal.send(key, ...)
     -- If the coroutine was removed from the active list by another
     -- In this case, reclear the coroutine so it is removed from
     -- any waiting position
+    -- TODO: This currently does not seem to work :(
     if not sub_list[co] then signal.clear(co) end
   end
   _active_list[key] = nil

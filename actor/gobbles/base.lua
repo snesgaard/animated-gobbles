@@ -169,6 +169,7 @@ local function wpn_state_listener(id, keys)
   local f
   for _, key in pairs(keys) do
     if input.ispressed(key) then
+      input.latch(key)
       local state = wpn_states[key]
       local function init(id)
         return state(id, key)
@@ -177,7 +178,9 @@ local function wpn_state_listener(id, keys)
       break
     end
   end
-  if f then signal.send("state@" .. id, f) end
+  if f then signal.send("state@" .. id, f)
+    return 
+  end
   return wpn_state_listener(id, keys)
 end
 
@@ -189,7 +192,7 @@ function api.wpn_state_listener_init(id, ...)
 end
 
 function api.return2base(id)
-  local next = states.ground_move and ai.on_ground(id) or states.arial_move
+  local next = ai.on_ground(id) and states.ground_move or states.arial_move
   signal.send("state@" .. id, next)
 end
 
@@ -204,11 +207,21 @@ states = {
   arial_run = {api.arial2ground, arial_animation},
 }
 
+-- NOTE: This state machine design requires that threads do not immidiately send
+-- A state change
 local function state_machine(id)
   local next_state = signal.wait("state@" .. id)
   concurrent.join()
   if next_state == nil then return end
-  map(function(f) concurrent.fork(f, id) end, next_state)
+  repeat
+    local state = next_state
+    next_state = nil
+    local co = concurrent.detach(function()
+      next_state = signal.wait("state@" .. id)
+    end)
+    map(function(f) concurrent.fork(f, id) end, state)
+    signal.clear(co)
+  until not next_state
   return state_machine(id)
 end
 
