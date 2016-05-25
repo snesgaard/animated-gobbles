@@ -73,22 +73,32 @@ function concurrent.fork(f, ...)
   local co = coroutine.create(f)
   coroutine.resume(co, ...)
   local c = children[current] or {}
-  table.insert(c, co)
+  --table.insert(c, co)
+  c[co] = co
   children[current] = c
   return co
 end
 
 -- Used to join a parent with all it's descendents
 -- This will clear them from all waiting signals and event
--- BUG: Potential leak if joining a specific coroutine
--- BUG: Meaning it won't be cleared from it's parent table
--- Fix by checking for argument and running thread
+-- NOTE: Maybe add a check when joining a specific routine, to ensure that it
+--        is a child routine
 function concurrent.join(co)
   co = co or coroutine.running() or "main"
-  local c = children[co] or {}
-  children[co] = nil
-  signal.clear(co)
-  map(concurrent.join, c)
+  local call_co = coroutine.running() or "main"
+  -- Check if we are dealing with a sub coroutine
+  -- In that case, clear it from the masters table
+  if co ~= call_co then
+    local super_children = children[call_co] or {}
+    super_children[co] = nil
+  end
+  local function subjoin(co)
+    local c = children[co] or {}
+    children[co] = nil
+    signal.clear(co)
+    map(concurrent.join, c)
+  end
+  subjoin(co)
 end
 
 -- A simple wrapper around coroutine create and first resume
