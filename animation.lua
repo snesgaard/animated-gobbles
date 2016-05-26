@@ -78,7 +78,7 @@ function animation.draw(atid, anid, time, type, from, to)
       i = i + dir
       if i > to or i < from then
          i, dir = border(i, dir)
-         if dir == 0 then return end
+         --if dir == 0 then return end
       end
       -- HACK: Return when animation no longer evolving
     end

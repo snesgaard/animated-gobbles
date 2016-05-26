@@ -82,8 +82,8 @@ function love.update(dt)
   end
   update.action(gamedata)
   update.movement(gamedata, level)
-  animation.update()
   state_engine.update()
+  animation.update()
   --coroutine.resume(animatelight, gamedata, lightids)
 end
 

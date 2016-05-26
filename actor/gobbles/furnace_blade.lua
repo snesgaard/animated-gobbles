@@ -4,7 +4,7 @@ local _anime -- Shared with base
 local _atlas -- Shared with base
 local _blast_atlas
 local _blast_anime = {}
-local _api
+local _gobbles
 
 -- Defines
 local time = {
@@ -26,36 +26,63 @@ local blast_a = {}
 -- Logic
 local action = {}
 local control = {}
+local next = {}
 
+local states = {}
 
+local function _monitor_blast(id, windup_time, key)
+  local dt = 0
+  next[id] = nil
+  while input.isdown(key) do dt = dt + signal.wait("update") end
+  if dt >= windup_time then
+    next[id] = states.blast_a
+    return
+  end
+  while not input.ispressed(key) do signal.wait("update") end
+  -- Set attack action
+end
 
-function slash_a(id, key)
+function states.slash_a(id, key)
   gd.spatial.vx[id] = 0
+  concurrent.join()
+  concurrent.fork(_monitor_blast, id, time.sA_windup, key)
+  map_geometry.diplace(id, 3 * gd.spatial.face[id], 0)
   animation.play(
     id, _atlas, _anime.furnace_blade_A, time.sA_windup, "once", 1, 6
   )
-  signal.wait("animation_done@" .. id)
+  ai.sleep(time.sA_windup)
+  map_geometry.diplace(id, 8 * gd.spatial.face[id], 0)
   animation.play(
     id, _atlas, _anime.furnace_blade_A, time.sA_attack, "once", 7, 11
   )
-  signal.wait("animation_done@" .. id)
+  ai.sleep(time.sA_attack)
   animation.play(
     id, _atlas, _anime.furnace_blade_A, time.sA_recover, "once", 12, 15
   )
-  signal.wait("animation_done@" .. id)
-  _api.return2base(id)
+  if next[id] then
+    return next[id](id, key)
+  end
+  _gobbles.fork_interrupt(id)
+  ai.sleep(time.sA_recover)
+  map_geometry.diplace(id, -3 * gd.spatial.face[id], 0)
+  _gobbles.goto_idle(id)
 end
 
-local states = {
-  slash_a = {slash_a}
-}
+function states.blast_a(id)
+  gd.spatial.vy[id] = 100
+  gd.spatial.vx[id] = -gd.spatial.face[id] * 100
+  gd.spatial.ground[id] = nil
+  animation.play(id, _atlas, _anime.furnace_blade_blast, 0.2, "bounce")
+  while not ai.on_ground(id) do signal.wait("update") end
+  _gobbles.goto_idle(id)
+end
 
 -- Interface
 local furnace_blade = {}
-function furnace_blade.load(atlas, anime, initanime, api)
+function furnace_blade.load(atlas, anime, initanime, gobbles)
   _atlas = atlas
   _anime = anime
-  _api = api
+  _gobbles = gobbles
   initanime("furnace_blade_A", 15, 33, 54)
   initanime("furnace_blade_B", 7, 20, 54)
   initanime("furnace_blade_blast", 3, 13, 22)

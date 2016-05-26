@@ -8,7 +8,7 @@ local width = 1.5
 local height = 10
 local walkspeed = 30
 local runspeed = 90
-local jumpspeed = 250
+local jumpspeed = 150
 local runjumpspeed = 150
 
 local atlas
@@ -30,6 +30,54 @@ local gd = gamedata
 local action = {}
 local control = {}
 local states = {}
+local gobbles = {}
+local weapon = {}
+local active_weapon = {}
+
+local function weapon_server()
+  local slot, wpn_id = signal.wait("set_weapon")
+  local wpn = weapon[wpn_id]
+  if slot < 1 or slot > 3 or not wpn then
+    error("Invalid slot or key recieved", slot, wpn_id)
+  end
+  weapon[slot] = wpn
+  print(string.format("Setting weapon <%s> to slot <%i>", wpn_id, slot))
+  return weapon_server()
+end
+
+local function _jump_interrupt(id)
+  signal.wait("update")
+  if input.ispressed(key.jump) then
+    input.latch(key.jump)
+    gd.spatial.ground[id] = nil
+    gd.spatial.vy[id] = jumpspeed
+    state_engine.set(id, states.arial_move)
+    return
+  end
+  return _jump_interrupt(id)
+end
+local function _generic_wpn_interrupt(id)
+  signal.wait("update")
+  local keywpn = {
+    [key.attackA] = weapon[1]
+  }
+  for key, wpn in pairs(keywpn) do
+    if input.ispressed(key) then
+      state_engine.set(id, wpn, key)
+      return
+    end
+  end
+  return _generic_wpn_interrupt(id)
+end
+function gobbles.fork_interrupt(id)
+  concurrent.fork(_jump_interrupt, id)
+  concurrent.fork(_generic_wpn_interrupt, id)
+  -- Hurt interrupt
+  -- Evade interrupt
+end
+function gobbles.goto_idle(id)
+  state_engine.set(id, states.ground_move)
+end
 -- Parse inputs and returns the newest direction pressed
 -- Right = 1
 -- Left = -1
@@ -98,31 +146,80 @@ local function arial2ground(id)
   end
 end
 
-
-local wpn_states = {}
-
 local function _ground_move(id)
   signal.wait("update")
   movement(id, walkspeed)
+  if not ai.on_ground(id) then return states.arial_move(id) end
+  if input.ispressed(key.runtoggle) then
+    input.latch(key.runtoggle)
+    return states.ground_run(id)
+  end
+  if input.ispressed(key.jump) then
+    input.latch(key.jump)
+    gd.spatial.ground[id] = nil
+    gd.spatial.vy[id] = jumpspeed
+    return states.arial_move(id)
+  end
   return _ground_move(id)
 end
 function states.ground_move(id)
+  concurrent.join()
   concurrent.fork(ground_animation, id)
+  concurrent.fork(_generic_wpn_interrupt, id)
   return _ground_move(id)
 end
 
 local function _arial_move(id)
   signal.wait("update")
-  movement(id, walkspeed)
-  arial2ground(id)
+  movement(id, walkspeed * 1.5)
+  if ai.on_ground(id) then return states.ground_move(id) end
   return _arial_move(id)
 end
 function states.arial_move(id)
+  concurrent.join()
   concurrent.fork(arial_animation, id)
   return _arial_move(id)
 end
 
--- NOTE: This state machine design requires that threads do not immidiately send
+local function _ground_run(id)
+  signal.wait("update")
+  -- Movement
+  local d = movement(id, runspeed)
+  -- Check for walk
+  if d == 0 or input.ispressed(key.runtoggle) then
+    input.latch(key.runtoggle)
+    return states.ground_move(id)
+  end
+  if input.ispressed(key.jump) then
+    input.latch(key.jump)
+    gd.spatial.ground[id] = nil
+    gd.spatial.vy[id] = runjumpspeed
+    return states.arial_run(id)
+  end
+  if not ai.on_ground(id) then return states.arial_run(id) end
+
+  -- Repeat
+  return _ground_run(id)
+end
+function states.ground_run(id)
+  concurrent.join()
+  animation.play(id, atlas, anime.run, 0.75)
+  return _ground_run(id)
+end
+
+local function _arial_run(id)
+  signal.wait("update")
+  gd.spatial.vx[id] = gd.spatial.face[id] * runspeed
+  if ai.on_ground(id) then return states.ground_run(id) end
+  return _arial_run(id)
+end
+function states.arial_run(id)
+  concurrent.join()
+  concurrent.fork(arial_animation, id)
+  return _arial_run(id)
+end
+
+-- APIS for weapon code
 
 
 function loader.gobbles()
@@ -157,8 +254,12 @@ function loader.gobbles()
       height * 2, "ally"
     )
   }
-  local fb_ground = furnace_blade.load(atlas, anime, initanime, api)
-  --wpn_states[key.attackA] = fb_ground
+  local fb_ground = furnace_blade.load(atlas, anime, initanime, gobbles)
+  weapon.furnace_blade = fb_ground
+
+  -- Fork weapon setting server
+  concurrent.detach(weapon_server)
+  signal.send("set_weapon", 1, "furnace_blade")
 
   -- HACK
   goobles_drawing_stuff = draw_engine.create_atlas(atlas)

@@ -3,7 +3,7 @@ local fun = require ("modules/functional")
 
 gravity = {}
 gravity.x = 0.0
-gravity.y = -350.0
+gravity.y = -500.0
 --gravity.y = 0
 
 local indexTransformNoClamp = function(x, mx, mw)

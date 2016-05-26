@@ -123,16 +123,18 @@ function ai.constant_hspeed(vx)
   end)
 end
 
-function ai.do_nothing_for(time)
-  local t = system.time
-  while system.time - t < time do coroutine.yield() end
+function ai.sleep(time)
+  local t = 0
+  while t < time do
+    t = t + signal.wait("update")
+  end
 end
 
 function ai.do_for(time, f)
   local t = system.time
   while system.time - t < time do
-    local args = {f()}
-    coroutine.yield(unpack(args))
+    f()
+    signal.wait("update")
   end
 end
 
