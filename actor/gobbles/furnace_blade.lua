@@ -35,11 +35,13 @@ local function _monitor_blast(id, windup_time, key)
   next[id] = nil
   while input.isdown(key) do dt = dt + signal.wait("update") end
   if dt >= windup_time then
-    next[id] = states.blast_a
+    next[id] = "blast"
     return
   end
+  input.latch(key)
   while not input.ispressed(key) do signal.wait("update") end
   -- Set attack action
+  next[id] = "next"
 end
 
 function states.slash_a(id, key)
@@ -59,8 +61,10 @@ function states.slash_a(id, key)
   animation.play(
     id, _atlas, _anime.furnace_blade_A, time.sA_recover, "once", 12, 15
   )
-  if next[id] then
-    return next[id](id, key)
+  if next[id] == "blast" then
+    return states.blast_a(id)
+  elseif next[id] == "next" then
+    return states.slash_b(id, key)
   end
   _gobbles.fork_interrupt(id)
   ai.sleep(time.sA_recover)
@@ -74,6 +78,32 @@ function states.blast_a(id)
   gd.spatial.ground[id] = nil
   animation.play(id, _atlas, _anime.furnace_blade_blast, 0.2, "bounce")
   while not ai.on_ground(id) do signal.wait("update") end
+  _gobbles.goto_idle(id)
+end
+
+function states.slash_b(id, key)
+  gd.spatial.vx[id] = 0
+  concurrent.join()
+  concurrent.fork(_monitor_blast, id, time.sB_windup, key)
+  map_geometry.diplace(id, 3 * gd.spatial.face[id], 0)
+  animation.play(
+    id, _atlas, _anime.furnace_blade_B, time.sB_windup, "once", 1, 2
+  )
+  ai.sleep(time.sB_windup)
+  map_geometry.diplace(id, 6 * gd.spatial.face[id], 0)
+  animation.play(
+    id, _atlas, _anime.furnace_blade_B, time.sB_attack, "once", 3, 5
+  )
+  ai.sleep(time.sB_attack)
+  if next[id] == "blast" then
+    return states.blast_a(id)
+  end
+  animation.play(
+    id, _atlas, _anime.furnace_blade_B, time.sB_recover, "once", 5, 7
+  )
+  _gobbles.fork_interrupt(id)
+  ai.sleep(time.sB_recover)
+  map_geometry.diplace(id, -4 * gd.spatial.face[id], 0)
   _gobbles.goto_idle(id)
 end
 
