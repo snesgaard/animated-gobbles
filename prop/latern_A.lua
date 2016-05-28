@@ -100,5 +100,5 @@ end
 
 function lantern_A.clear()
   flares = {}
-  resource.atlas.color[atlas]:clear()
+  --resource.atlas.color[atlas]:clear()
 end

@@ -211,5 +211,5 @@ function love.draw()
   gfx.origin()
   gfx.setShader()
   gfx.setBlendMode("alpha")
-  for _, atlas in pairs(resource.atlas.color) do atlas:clear() end
+  --for _, atlas in pairs(resource.atlas.color) do atlas:clear() end
 end

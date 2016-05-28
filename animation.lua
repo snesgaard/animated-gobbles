@@ -22,7 +22,7 @@ function animation.init(anime, id, im, index, frames, ox, oy, normal_hack)
   anime.normals[id] = normal_hack or false
 end
 
-function animation.draw(atid, anid, time, type, from, to)
+function animation.draw(batch_id, atid, anid, time, type, from, to)
   local atlas = resource.atlas.color[atid]
   local anime = resource.animation
 
@@ -71,7 +71,7 @@ function animation.draw(atid, anid, time, type, from, to)
         -- HACK
         local a = (sx > 0 or not nh) and 1 or -1
         atlas:setColor(255, 255, 255, 255 * a)
-        atlas:add(anime.quads[anid][i], x, y, r, sx, sy)
+        atlas:set(batch_id, anime.quads[anid][i], x, y, r, sx, sy)
         dt, x, y, r, sx, sy = coroutine.yield(true)
       end
       t = ft + t
@@ -94,8 +94,23 @@ function animation.entitydraw(id, func)
   return func(system.dt, x, -y, 0, f, 1)
 end
 
-function animation.entitydrawer(id, ...)
-  local anime = animation.draw(...)
+local _all_batch_ids = {}
+local function _fetch_batch_id(atlas_id, id)
+  local batch_ids = _all_batch_ids[atlas_id]
+  if not batch_ids then
+    batch_ids = {}
+    _all_batch_ids[atlas_id] = batch_ids
+  end
+  local bid = batch_ids[id]
+  if not bid then
+    bid = resource.atlas.color[atlas_id]:add(0, 0, 0, 0, 0)
+    batch_ids[id] = bid
+  end
+  return bid
+end
+function animation.entitydrawer(id, atid, anid, time, type, from, to)
+  local batch_id = _fetch_batch_id(atid, id)
+  local anime = animation.draw(batch_id, atid, anid, time, type, from, to)
   local g = coroutine.wrap(function(...)
     anime(...)
     signal.send("animation_done@" .. id)
