@@ -135,5 +135,12 @@ end
 function animation.stop(id)
   _entity_animations[id] = nil
 end
+function animation.release(id, ...)
+  local atlases = {...}
+  for _, atlas_id in pairs(atlases) do
+    local _batches = _all_batch_ids[atlas_id]
+    if _batches then _batches[id] = nil end
+  end
+end
 
 return animation
