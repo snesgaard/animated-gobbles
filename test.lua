@@ -23,7 +23,6 @@ local fb = {}
 
 function love.load()
   camera_id = setdefaults()
-  gamedata.ai.control[camera_id] = camera.wobble(0, 0)
   level = sti.new("resource/test3.lua")
   renderbox.do_it = false
   -- Load entity
@@ -39,23 +38,19 @@ function love.load()
   --light.create_dynamic(gamedata, gfx.getWidth(), gfx.getHeight(), 800, 1200, 1200)
   light.create_dynamic(gamedata, gfx.getWidth(), gfx.getHeight(), 200, 400, 400)
   light.create_static(gamedata)
-  cubeshad = loadshader("resource/shader/cube.glsl", "resource/shader/cube_vert.glsl")
-  --primshad = loadshader("resource/shader/primitives.glsl")
-  dnmap = gfx.newImage("resource/tileset/no_normal.png")
-  fb.colormap = gfx.newCanvas(width, height)
-  fb.scenemap = gfx.newCanvas(width, height)
-  fb.normalmap = gfx.newCanvas(width, height)
-  fb.bloommap = gfx.newCanvas(width, height)
 
   -- Intansiate objects
+  local ent_table = {}
   for _, obj in pairs(level.layers.entity.objects) do
     local type_parse = parser[obj.type]
     local type_init = init[obj.type]
     if type_parse and type_init then
       local args = {type_parse(obj)}
-      initresource(gamedata, type_init, unpack(args))
+      local id = initresource(gamedata, type_init, unpack(args))
+      ent_table[obj.name] = id
     end
   end
+  concurrent.detach(camera.follow, camera_id, ent_table.player, level)
   --initresource(gamedata, init.gobbles, 200, -100)
   --initresource(gamedata, init.blast, 100, 100)
 

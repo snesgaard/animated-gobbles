@@ -6,6 +6,13 @@ camera = {}
 
 local gfx = love.graphics
 
+local function normalize(x, y)
+  if math.abs(x) < 1e-6 and math.abs(y) < 1e-6 then return x, y, 0 end
+  local l = math.sqrt(x * x + y * y)
+  local s = 1.0 / l
+  return x * s, y * s, l
+end
+
 function camera.transformation(id, level)
   local cw = gamedata.spatial.width[id]
   local ch = gamedata.spatial.height[id]
@@ -18,17 +25,6 @@ function camera.transformation(id, level)
     cx, cy = camera.limit_map(id, level)
   end
   gfx.translate(cw * 0.5 - cx, ch * 0.5 + cy)
-end
-
-function camera.wobble(x, y)
-  local spatial = gamedata.spatial
-  local function f(id)
-    local t = system.time
-    spatial.x[id] = x + 10 * math.cos(t)
-    spatial.y[id] = y + 10 * math.sin(t)
-    return f(coroutine.yield())
-  end
-  return coroutine.create(f)
 end
 
 function camera.limit_map(id, level)
@@ -44,4 +40,34 @@ function camera.limit_map(id, level)
   y = math.min(y, -h * 0.5 - level.tileheight)
   y = math.max(y, -mh + h * 0.5 + level.tileheight)
   return x, y
+end
+
+function camera.follow(cam_id, target_id, level)
+  local dt = signal.wait("update")
+  local spa = gamedata.spatial
+  local cx = spa.x[cam_id]
+  local cy = spa.y[cam_id]
+  local tx = spa.x[target_id]
+  local ty = spa.y[target_id]
+  if spa.vx[target_id] ~= 0 then
+    local v = spa.vx[target_id]
+    local s = v / math.abs(v)
+    tx = tx + 100 * s
+  end
+  local dx = tx - cx
+  local dy = ty - cy
+  local l = 0
+  dx, dy, l = normalize(dx, dy)
+  local speed = math.exp(l * 0.005) - 1
+  if speed > 1e-5 then
+    dx = dx * speed
+    dy = dy * speed
+    spa.x[cam_id] = cx + dx
+    spa.y[cam_id] = cy + dy
+  else
+    spa.x[cam_id] = tx
+    spa.y[cam_id] = ty
+  end
+  spa.x[cam_id], spa.y[cam_id] = camera.limit_map(cam_id, level)
+  return camera.follow(cam_id, target_id, level)
 end
