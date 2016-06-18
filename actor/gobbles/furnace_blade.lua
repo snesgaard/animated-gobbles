@@ -57,6 +57,7 @@ function states.slash_a(id, key)
   animation.play(
     id, _atlas, _anime.furnace_blade_A, time.sA_attack, "once", 7, 11
   )
+  collision_engine.sequence(id, _hitbox.slash_a, time.sA_attack)
   ai.sleep(time.sA_attack)
   animation.play(
     id, _atlas, _anime.furnace_blade_A, time.sA_recover, "once", 12, 15
@@ -94,6 +95,7 @@ function states.slash_b(id, key)
   animation.play(
     id, _atlas, _anime.furnace_blade_B, time.sB_attack, "once", 3, 5
   )
+  collision_engine.sequence(id, _hitbox.slash_b, time.sB_attack)
   ai.sleep(time.sB_attack)
   if next[id] == "blast" then
     return states.blast_a(id)
@@ -126,6 +128,34 @@ function furnace_blade.load(atlas, anime, initanime, gobbles)
     )
   end
   initblastanime("furnace_blast_A", 9, 39, 55)
+
+  local function make_init_hurt_box(ox, oy)
+    return function(xl, yl, xh, yh)
+      local w = xh - xl
+      local h = yh - yl
+      return initresource(
+        resource.hitbox, coolision.createaxisbox, xl - ox + 1, oy - yh, w,
+        h, nil, "enemy"
+      )
+    end
+  end
+  local slash_a_hurt_box = make_init_hurt_box(33, 54)
+  local slash_b_hurt_box = make_init_hurt_box(20, 54)
+  _hitbox = {
+    slash_a = {
+      slash_a_hurt_box(25, 28, 54, 46),
+      slash_a_hurt_box(34, 31, 57, 62),
+      slash_a_hurt_box(37, 46, 53, 62),
+      collision_engine.empty_box(),
+      collision_engine.empty_box(),
+    },
+    slash_b = {
+      slash_b_hurt_box(17, 51, 46, 61),
+      slash_b_hurt_box(17, 51, 46, 61),
+      collision_engine.empty_box(),
+    }
+  }
+
   return states.slash_a
 end
 

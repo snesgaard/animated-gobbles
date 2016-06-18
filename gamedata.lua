@@ -1,6 +1,6 @@
 local seed = {}
 local available_id = {}
-local function createresource(resource)
+function createresource(resource)
   --resource.__seed__ = 1
   --resource.__available_id__ = {}
   seed[resource] = 1
@@ -20,9 +20,6 @@ function allocresource(resource)
 end
 function freeresource(resource, id)
   table.insert(available_id[resource], id)
-  for _, v in pairs(resource) do
-    v[id] = nil
-  end
 end
 function initresource(resource, f, ...)
   local id = allocresource(resource)

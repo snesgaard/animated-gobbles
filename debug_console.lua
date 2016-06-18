@@ -6,7 +6,7 @@ local gfx = love.graphics
 
 debug = {
   buffer_view = false,
-  draw_hitbox = false,
+  draw_hitbox = true,
 }
 
 function debug.view_scene()

@@ -10,6 +10,7 @@ require "math"
 require "camera"
 require "draw_engine"
 require "state_engine"
+require "collision_engine"
 require "sfx"
 require "debug_console"
 
@@ -48,6 +49,7 @@ function love.load()
       local args = {type_parse(obj)}
       local id = initresource(gamedata, type_init, unpack(args))
       ent_table[obj.name] = id
+      print("entity", obj.name, id)
     end
   end
   concurrent.detach(camera.follow, camera_id, ent_table.player, level)
@@ -77,6 +79,7 @@ function love.update(dt)
   end
   update.action(gamedata)
   update.movement(gamedata, level)
+  collision_engine.update(dt)
   state_engine.update()
   animation.update()
   --coroutine.resume(animatelight, gamedata, lightids)
@@ -170,6 +173,20 @@ function love.draw()
     gfx.origin()
     gfx.setShader()
     gfx.setStencilTest()
+
+    if debug.draw_hitbox then
+      camera.transformation(camera_id, level)
+      local xlow, xup, ylow, yup = collision_engine.get_boundries()
+      gfx.setColor(255, 255, 255, 100)
+      gfx.setBlendMode("alpha")
+      for id, xl in pairs(xlow) do
+        local xu = xup[id]
+        local yl = ylow[id]
+        local yu = yup[id]
+        gfx.rectangle("line", xl, -yl, xu - xl, yl - yu)
+      end
+      gfx.origin()
+    end
 
     for id, _ in pairs(gamedata.tag.ui) do
       local draw = gamedata.radiometry.draw[id]

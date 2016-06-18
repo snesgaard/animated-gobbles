@@ -277,6 +277,7 @@ function init.gobbles(gd, id, x, y)
     gamedata.tag.entity[id] = true
 
     state_engine.set(id, states.arial_move)
+    collision_engine.sequence(id, hitbox.body, 1)
     --signal.send("state@" .. id, states.ground_move)
 end
 
