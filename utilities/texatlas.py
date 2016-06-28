@@ -89,12 +89,12 @@ print "final cost"
 print C[tr, tc]
 print "theoretical min cost"
 print theorymin
-fim = np.zeros((D[tr, tc, 0], D[tr, tc, 1], 4), dtype = "uint8")
+fim = np.zeros((int(D[tr, tc, 0]), int(D[tr, tc, 1]), 4), dtype = "uint8")
 splits = [imcount]
 while tc > 1:
     print(tr)
     splits.append(int(tr))
-    ntr = T[tr, tc]
+    ntr = int(T[tr, tc])
     tc = tr
     tr = ntr
 
