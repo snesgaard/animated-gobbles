@@ -8,6 +8,14 @@ function map(f, t)
   return r
 end
 
+function duplicate(val, n)
+  local t = {}
+  for i = 1, n do
+    t[i] = val
+  end
+  return t
+end
+
 function concatenate(...)
   local lists = {...}
   local aggr = {}

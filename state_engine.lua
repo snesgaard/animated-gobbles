@@ -40,6 +40,10 @@ function state_engine.update()
     end
     -- Fork new thread with supplied arguments
     local args = pa[id] or {}
-    states[id] = concurrent.fork(state, id, unpack(args))
+    if state then
+      states[id] = concurrent.fork(state, id, unpack(args))
+    else
+      states[id] = nil
+    end
   end
 end

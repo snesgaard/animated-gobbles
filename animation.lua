@@ -22,6 +22,26 @@ function animation.init(anime, id, im, index, frames, ox, oy, normal_hack)
   anime.normals[id] = normal_hack or false
 end
 
+function animation.init(anime, id, im, index, frame_data, normal_hack)
+  local frames = #frame_data.frame_size
+  local x = index.x
+  local y = index.y
+  local w = index.w
+  local h = index.h
+  anime.x[id] = frame_data.offset_x or 0
+  anime.y[id] = frame_data.offset_y or 0
+  anime.quads[id] = {}
+  for i = 1, frames do
+    local fw = frame_data.frame_size[i]
+    local q = love.graphics.newQuad(
+      x, y, fw, h, im:getDimensions()
+    )
+    table.insert(anime.quads[id], q)
+    x = x + fw
+  end
+  anime.normals[id] = normal_hack or false
+end
+
 function animation.draw(batch_id, atid, anid, time, type, from, to)
   local atlas = resource.atlas.color[atid]
   local anime = resource.animation
@@ -57,7 +77,6 @@ function animation.draw(batch_id, atid, anid, time, type, from, to)
     end
     ft = time / (to - from + 1)
   end
-
   local f = function(dt, x, y, r, sx, sy)
     local t = ft
     --dt = 0
@@ -66,8 +85,8 @@ function animation.draw(batch_id, atid, anid, time, type, from, to)
         t = t - dt
         --x = math.floor(x - sx * ox)
         --y = math.floor(y - sy * oy)
-        x = x - sx * ox
-        y = y - sy * oy
+        x = x - sx * ox[i]
+        y = y - sy * oy[i]
         -- HACK
         local a = (sx > 0 or not nh) and 1 or -1
         atlas:setColor(255, 255, 255, 255 * a)

@@ -48,7 +48,7 @@ end
 
 local function create_draw(id)
   --local anime = animation.draw(atlas, animid, 0.75)
-  animation.play(id, atlas, animid, 0.75)
+  --animation.play(id, atlas, animid, 0.75)
   local spatial = gamedata.spatial
   local function f(id)
     --animation.entitydraw(id, anime)
@@ -64,9 +64,6 @@ function loader.lantern_A()
     at.color[id] = gfx.newSpriteBatch(im, 200, "stream")
   end)
   local index = {x = 0, y = 0, w = im:getWidth(), h = im:getHeight()}
-  animid = initresource(
-    resource.animation, animation.init, im, index, 5, 8, 11
-  )
 
   local sprite_draw = draw_engine.create_atlas(atlas)
   local glow_draw = draw_engine.create_primitive(all_draw_flare, false, false, true)

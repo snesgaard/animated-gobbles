@@ -1,18 +1,20 @@
 require "math"
 
+collision_engine = {}
+
+-- This hers be a list of lists of hitbox requests
+-- It contains entity IDs at top level and boxids at bottom level
 local _collision_requests = {}
 -- Marks a hitbox as being active for a given entity
 -- By only supplying id and seq_id the current active box will be released
-local function _set_request(id, seq_id, box_id)
+local function _set_request(id, box_id)
   local sub_req = _collision_requests[id]
   if not sub_req then
     sub_req = {}
     _collision_requests[id] = sub_req
   end
   if box_id ~= collision_engine.empty_box() then
-    sub_req[seq_id] = box_id
-  else
-    sub_req[seq_id] = nil
+    sub_req[box_id] = box_id
   end
 end
 
@@ -22,71 +24,148 @@ local function _fetch_result(res, id, boxid)
   return sub_res[boxid]
 end
 
-local function _run_sequence(id, seq_id, seq, time, callback)
-  local i = 1
-  local l = #seq
-  local ft = time / l
-  for i = 1, l do
-      -- Register id in engine
-      local t = 0
-      local box_id = seq[i]
-      _set_request(id, seq_id, box_id)
-      while t < ft do
-        local dt, res = coroutine.yield()
-        t = t + dt
-        local sub_res = _fetch_result(res, id, boxid)
-        if sub_res and callback then map(callback, sub_res) end
+-- Sequence iterator
+-- Argument in order
+local function create_sequence(args)
+  local id = args[1]
+  local seq = args[2]
+  local time = args[3]
+  local cb  = args.callback
+  local to = args.to or #seq
+  local from = args.from or 1
+  local type = args.type or "repeat"
+
+  local ft
+  local dir = 1
+  if type == "repeat" then
+    border = function(i, dir)
+      return from, 1
+    end
+    ft = time / (to - from + 1)
+  elseif type == "bounce" then
+    border = function(i, dir)
+      if dir == 1 then
+        return math.max(from, to - 1), -1
+      else
+        return math.min(from + 1, to), 1
       end
+    end
+    ft = time / (to - from) * 0.5
+  elseif type == "once" then
+    border = function(i, dir)
+      return to, 0
+    end
+    ft = time / (to - from + 1)
   end
-  _set_request(id, seq_id)
-  return true
+  local function f(dt)
+    local t = ft
+    local i = from
+    while true do
+      local boxid = seq[i]
+      while t > 0 do
+        t = t - dt
+        _set_request(id, boxid)
+        local col_res = coroutine.yield()
+        local sub_res = _fetch_result(col_res, id, boxid)
+        if cb and sub_res then map(cb, sub_res) end
+        dt = coroutine.yield()
+      end
+      t = ft + t
+      i = i + dir
+      if i > to or i < from then i, dir = border(i, dir) end
+    end
+  end
+  return coroutine.wrap(f)
 end
 
-local active_sequence = createresource({
-  sequence = {},
-  owner = {},
-})
-collision_engine = {}
--- This creates a sequence play back, where a list of hitboxes is traverse in
--- the given time. If a box collides the provided callback function will be
--- triggered. If no callback is desired simply set it to nil
-function collision_engine.sequence(id, seq, time, callback)
-  if type(seq) ~= "table" then seq = {seq} end
-  local seq_id = allocresource(active_sequence)
-  local co = concurrent.detach(_run_sequence, id, seq_id, seq, time, callback)
-  active_sequence.sequence[seq_id] = co
-  active_sequence.owner[seq_id] = id
+local master_sequence = {}
+
+local function _create_boundry_draw(col_req)
+  return function()
+    local _, _, _, xlow, xup, ylow, yup = coolision.sortcoolisiongroups(
+      gamedata, col_req
+    )
+    gfx.setColor(255, 255, 255, 100)
+    gfx.setBlendMode("alpha")
+    for id, xl in pairs(xlow) do
+      local xu = xup[id]
+      local yl = ylow[id]
+      local yu = yup[id]
+      gfx.rectangle("line", xl, -yl, xu - xl, yl - yu)
+    end
+  end
+end
+
+function collision_engine.update(dt)
+  -- Update all sequences temporally
+  for id, sequences in pairs(master_sequence) do
+    for _, seq in pairs(sequences) do
+      seq(dt)
+    end
+  end
+  local col_req = _collision_requests
+  _collision_requests = {}
+  collision_engine.draw_boundries = _create_boundry_draw(col_req)
+  -- Run collision detection on all registered hitboxes
+  local results = coolision.docollisiondetections(gamedata, col_req)
+  -- Submit results to all sequences
+  for id, sequences in pairs(master_sequence) do
+    for _, seq in pairs(sequences) do
+      seq(results)
+    end
+  end
+  return col_req
+end
+
+function collision_engine.sequence(args)
+  local id = args[1]
+  local sequences = master_sequence[id]
+  if not sequences then
+    sequences = {}
+    master_sequence[id] = sequences
+  end
+  local seq_id = #sequences + 1
+  sequences[seq_id] = create_sequence(args)
   return seq_id
 end
 
-function collision_engine.stop(seq_id)
-  local id = active_sequence.owner[seq_id]
-  _set_request(id, seq_id)
-  active_sequence.sequence[seq_id] = nil
-  active_sequence.owner[seq_id] = nil
-  freeresource(active_sequence, seq_id)
+function collision_engine.stop(id, seq_id)
+  local sequences = master_sequence[id]
+  if not sequences then return end
+  if seq_id then
+    sequences[seq_id] = nil
+  else
+    master_sequence[id] = {}
+  end
 end
 
--- Fake id that symbolizes an empty collision box
 function collision_engine.empty_box()
   return -1
 end
 
-function collision_engine.update(dt)
-  -- Acquire all submitted collision states
-  local collision_results = coolision.docollisiondetections(
-    gamedata, _collision_requests
-  )
-  -- Update all active sequence with results and time
-  for seq_id, seq_co in pairs(active_sequence.sequence) do
-    local stat, ret = coroutine.resume(seq_co, dt, collision_results)
-    if ret then collision_engine.stop(seq_id) end
+function collision_engine.alloc_sequence(seq, hail, seek)
+  local f = function(h)
+    if #h == 0 then
+      return collision_engine.empty_box()
+    else
+      h = h[1]
+      return initresource(
+        resource.hitbox, coolision.createaxisbox, h[1], h[2], h[3], h[4], hail,
+        seek
+      )
+    end
   end
+  return map(f, seq)
 end
 
-function collision_engine.get_boundries()
-  local _, _, _, xlow, xup, ylow, yup = coolision.sortcoolisiongroups(
-    gamedata, _collision_requests
-  )
-  return xlow, xup, ylow, yup
+function collision_engine.batch_alloc_sequence(seq_map, hail_map, seek_map)
+  local res = {}
+  for key, seq in pairs(seq_map) do
+    res[key] = collision_engine.alloc_sequence(
+      seq, hail_map[key], seek_map[key]
+    )
+  end
+  return res
 end
+
+function collision_engine.draw_boundries() end

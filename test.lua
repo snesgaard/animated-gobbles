@@ -11,6 +11,7 @@ require "camera"
 require "draw_engine"
 require "state_engine"
 require "collision_engine"
+require "entity_engine"
 require "sfx"
 require "debug_console"
 
@@ -81,6 +82,7 @@ function love.update(dt)
   update.movement(gamedata, level)
   collision_engine.update(dt)
   state_engine.update()
+  entity_engine.update(dt)
   animation.update()
   --coroutine.resume(animatelight, gamedata, lightids)
 end
@@ -176,16 +178,23 @@ function love.draw()
 
     if debug.draw_hitbox then
       camera.transformation(camera_id, level)
-      local xlow, xup, ylow, yup = collision_engine.get_boundries()
+      collision_engine.draw_boundries()
+      gfx.origin()
+    end
+    if debug.draw_entity then
+      gfx.push()
+      gfx.origin()
+      camera.transformation(camera_id, level)
       gfx.setColor(255, 255, 255, 100)
       gfx.setBlendMode("alpha")
-      for id, xl in pairs(xlow) do
-        local xu = xup[id]
-        local yl = ylow[id]
-        local yu = yup[id]
-        gfx.rectangle("line", xl, -yl, xu - xl, yl - yu)
+      for id, _ in pairs(gamedata.tag.entity) do
+        local x = gamedata.spatial.x[id]
+        local y = gamedata.spatial.y[id]
+        local w = gamedata.spatial.width[id]
+        local h = gamedata.spatial.height[id]
+        gfx.rectangle("line", x - w, -y + h, w * 2, -h * 2)
       end
-      gfx.origin()
+      gfx.pop()
     end
 
     for id, _ in pairs(gamedata.tag.ui) do
