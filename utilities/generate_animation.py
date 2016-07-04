@@ -5,6 +5,7 @@ import argparse
 import sys
 import math
 import string
+import os
 
 parser = argparse.ArgumentParser(description='Crops frames and extracts hitbox info')
 parser.add_argument(
@@ -43,7 +44,6 @@ frame_shape = (int(args.height), int(args.width))
 if len(args.path) < 2:
     print "Please provide animation frame and hitbox in that order"
     sys.exit(-5)
-
 
 animation_im = cv2.imread(args.path[0], -1)
 # Encode hitbox color as hexadecimal numbers
@@ -199,7 +199,7 @@ for key in hitbox_border_dic.keys():
     )
     key_str = "0x{:06x}".format(key)
     lua_seq = format2lua(str(cor_seq))
-    hitbox_str += "\t\t[{0}] = {1},\n".format(key_str, lua_seq)
+    hitbox_str += "\t\t\t[{0}] = {1},\n".format(key_str, lua_seq)
 
 offset_x_seq = map(lambda s: s[0], offset_seq)
 offset_y_seq = map(lambda s: s[1] + 1, offset_seq)
@@ -207,15 +207,16 @@ offset_y_seq = map(lambda s: s[1] + 1, offset_seq)
 width_seq = map(lambda s: s[0], shape_seq)
 height_seq = map(lambda s: s[1], shape_seq)
 
-output_str = "data = {\n"
-output_str += "\toffset_x = {0},\n".format(format2lua(str(offset_x_seq)))
-output_str += "\toffset_y = {0},\n".format(format2lua(str(offset_y_seq)))
-output_str += "\tvx = {0},\n".format(format2lua(str(vx_seq)))
-output_str += "\tframe_size = {0},\n".format(format2lua(str(frame_size_seq)))
-output_str += "\twidth = {0},\n".format(format2lua(str(width_seq)))
-output_str += "\theight = {0},\n".format(format2lua(str(height_seq)))
-output_str += "\thitbox = {{\n{0}\n\t}}\n".format(hitbox_str)
-output_str += "}\nreturn data\n"
+tab_name = os.path.splitext(os.path.basename(args.path[0]))[0]
+output_str = "\t{0} = {{\n".format(tab_name)
+output_str += "\t\toffset_x = {0},\n".format(format2lua(str(offset_x_seq)))
+output_str += "\t\toffset_y = {0},\n".format(format2lua(str(offset_y_seq)))
+output_str += "\t\tvx = {0},\n".format(format2lua(str(vx_seq)))
+output_str += "\t\tframe_size = {0},\n".format(format2lua(str(frame_size_seq)))
+output_str += "\t\twidth = {0},\n".format(format2lua(str(width_seq)))
+output_str += "\t\theight = {0},\n".format(format2lua(str(height_seq)))
+output_str += "\t\thitbox = {{\n{0}\n\t\t}}\n".format(hitbox_str)
+output_str += "\t},\n"
 
 cv2.imwrite(args.frame, final_frame)
 

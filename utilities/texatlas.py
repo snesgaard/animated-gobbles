@@ -20,10 +20,18 @@ parser.add_argument(
     "-i", "--index", dest = "index", type = str, default = "./index.lua",
     help = "Path to indexing Lua file"
 )
+parser.add_argument(
+    "-v", "--verbose", dest = "verbose", action='store_true', default = False,
+    help = "Makes script talkative"
+)
 
 args = parser.parse_args()
 
 ims = []
+
+def vprint(*arg):
+    if args.verbose:
+        print arg
 
 theorymin = 0
 for path in args.path:
@@ -79,20 +87,20 @@ for r in xrange(0, imcount + 1):
 
 tc = C.shape[1] - 1
 tr = np.argmin(C[:, -1])
-print "cost"
-print C[:, -1]
-print "trace"
-print T
-print "final dim"
-print D[tr, tc]
-print "final cost"
-print C[tr, tc]
-print "theoretical min cost"
-print theorymin
+vprint("cost")
+vprint(C[:, -1])
+vprint("trace")
+vprint(T)
+vprint("final dim")
+vprint(D[tr, tc])
+vprint("final cost")
+vprint(C[tr, tc])
+vprint("theoretical min cost")
+vprint(theorymin)
 fim = np.zeros((int(D[tr, tc, 0]), int(D[tr, tc, 1]), 4), dtype = "uint8")
 splits = [imcount]
 while tc > 1:
-    print(tr)
+    vprint(tr)
     splits.append(int(tr))
     ntr = int(T[tr, tc])
     tc = tr
@@ -100,7 +108,7 @@ while tc > 1:
 
 splits.append(0)
 splits.reverse()
-print(splits)
+vprint(splits)
 
 h = 0
 indexfile = []
