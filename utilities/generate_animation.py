@@ -116,6 +116,8 @@ animation_seq_binary = get_frame_seq(animation_im_binary, frames)
 animation_seq_border = map(find_hitboxes, animation_seq_binary)
 
 def total_frame_border(borders):
+    if len(borders) == 0:
+        return ()
     xmin = np.inf
     xmax = -np.inf
     ymin = np.inf
@@ -131,8 +133,10 @@ def total_frame_border(borders):
 animation_seq_border = map(total_frame_border, animation_seq_border)
 
 hitbox_border_dic = dict(zip(colorhashes, hitbox_seq_border))
+for key in hitbox_border_dic.keys():
+    hitbox_border_dic[key] = map(total_frame_border, hitbox_border_dic[key])
 # Let us take the default
-entity_seq = map(lambda seq: seq[0], hitbox_border_dic[0xff00])
+entity_seq = hitbox_border_dic[0xff00]
 
 def center_of_mass((minx, miny, maxx, maxy)):
     return (minx + maxx) * 0.5, (miny + maxy) * 0.5
@@ -185,6 +189,8 @@ def format2lua(s):
     return s
 
 def hitbox_offset(hitbox, center):
+    if len(hitbox) == 0:
+        return ()
     (cx, cy) = center
     (minx, miny, maxx, maxy) = hitbox
     return minx - cx, cy - maxy, maxx - minx, maxy - miny
@@ -193,9 +199,7 @@ hitbox_str = ""
 for key in hitbox_border_dic.keys():
     seq = hitbox_border_dic[key]
     cor_seq = map(
-        lambda (subseq, center): map(
-            lambda h: hitbox_offset(h, center), subseq
-        ), zip(seq, center_seq)
+        lambda (h, center): hitbox_offset(h, center), zip(seq, center_seq)
     )
     key_str = "0x{:06x}".format(key)
     lua_seq = format2lua(str(cor_seq))

@@ -34,9 +34,9 @@ local function create_sequence(args)
   local to = args.to or #seq
   local from = args.from or 1
   local type = args.type or "repeat"
-
   local ft
   local dir = 1
+  local border
   if type == "repeat" then
     border = function(i, dir)
       return from, 1
@@ -148,7 +148,6 @@ function collision_engine.alloc_sequence(seq, hail, seek)
     if #h == 0 then
       return collision_engine.empty_box()
     else
-      h = h[1]
       return initresource(
         resource.hitbox, coolision.createaxisbox, h[1], h[2], h[3], h[4], hail,
         seek
