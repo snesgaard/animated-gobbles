@@ -338,12 +338,12 @@ function physics.update_entity(map, layer, id)
   local wx = spa.width[id]
   local wy = spa.height[id]
   local dt = system.dt
-
+  vx, vy = physics.accelerate(dt, vx, vy, cx, cy)
   local dx = vx * dt
   local dy = vy * dt
   local cx, cy
   x, y, cx, cy = physics.move_entity(map, layer, x, y, wx, wy, dx, dy)
-  vx, vy = physics.accelerate(dt, vx, vy, cx, cy)
+  vy = cy and 0 or vy
   vy = physics.slope_compensate(map, layer, x, y, wy, vx, vy)
 
   spa.x[id] = x

@@ -2,11 +2,13 @@ require "math"
 
 local function sequence(id, width, height, vx, time, type, from, to)
   local frames = math.min(#width, #height)
+  vx = vx or {}
   type = type or "repeat"
   from = from or 1
   to = to or frames
   local ft
   local dir = 1
+  local border
   if type == "repeat" then
     border = function(i, dir)
       return from, 1
@@ -42,14 +44,15 @@ local function sequence(id, width, height, vx, time, type, from, to)
         spatial.height[id] = height[i]
         map_geometry.diplace(id, 0, -dy)
       end
+      map_geometry.diplace(id, spatial.face[id] * (vx[i - 1] or 0), 0)
       while t > 0 do
         t = t - dt
         dt = coroutine.yield()
       end
-      map_geometry.diplace(id, spatial.face[id] * (vx[i] or 0), 0)
       t = ft + t
       i = i + dir
       if i > to or i < from then i, dir = border(i, dir) end
+      while dir == 0 do coroutine.yield() end
     end
   end
   return f
