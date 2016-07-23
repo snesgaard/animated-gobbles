@@ -4,6 +4,8 @@ init = {}
 parser = {}
 drawer = {}
 
+rx = require "rx"
+require "rx-love"
 require "io"
 require "light"
 require "math"
@@ -71,23 +73,28 @@ function map_geometry.diplace(id, dx, dy)
   physics.displace_entity(level, "geometry", id, dx or 0, dy or 0)
 end
 
-function love.update(dt)
+state_update = rx.Subject.create()
+
+love.update:subscribe(function(dt)
   -- Clean resources for next
   update.system(dt)
   signal.send("update", dt)
   for id, co in pairs(gamedata.ai.control) do
     coroutine.resume(co, id)
   end
-  update.action(gamedata)
   update.movement(gamedata, level)
-  collision_engine.update(dt)
-  state_engine.update()
+  state_update:onNext(dt)
+  --state_engine.update()
   entity_engine.update(dt)
   animation.update()
-  --coroutine.resume(animatelight, gamedata, lightids)
-end
+  collision_engine.update(dt)
+end)
 
-function love.draw()
+love.keypressed
+  :filter(util.equal("escape"))
+  :subscribe(love.event.quit)
+
+love.draw:subscribe(function()
   camera.transformation(camera_id, level)
   -- Clear canvas
   local scenemap, colormap, glowmap, normalmap = draw_engine.get_canvas()
@@ -233,4 +240,4 @@ function love.draw()
   gfx.setShader()
   gfx.setBlendMode("alpha")
   --for _, atlas in pairs(resource.atlas.color) do atlas:clear() end
-end
+end)

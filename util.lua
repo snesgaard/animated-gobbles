@@ -1,5 +1,6 @@
 require "math"
 
+util = {}
 function map(f, t)
   local r = {}
   for key, val in pairs(t) do
@@ -40,4 +41,14 @@ function zip(...)
     table.insert(zipped, lists)
   end
   return zipped
+end
+
+function util.equal(k)
+  return function(c) return k == c end
+end
+function util.time(t)
+  return function(dt)
+    t = t - dt
+    return t > 0
+  end
 end
