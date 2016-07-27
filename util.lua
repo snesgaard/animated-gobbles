@@ -43,12 +43,47 @@ function zip(...)
   return zipped
 end
 
-function util.equal(k)
-  return function(c) return k == c end
+function fold(f, l, init)
+  if #l == 0 then
+    if not init then
+      error("fold was called with empty list and no initializer")
+    else
+      return init
+    end
+  end
+  if #l == 1 and init == nil then return l[1] end
+  local j = 1
+  if init == nil then
+    init = f(l[1], l[2])
+    j = 3
+  end
+  for i = j, #l do init = f(init, l[i]) end
+  return init
+end
+
+function util.equal(...)
+  local args = {...}
+  return function(c)
+    local val = false
+    for _, k in pairs(args) do
+      val = val or c == k
+    end
+    return val
+  end
 end
 function util.time(t)
   return function(dt)
     t = t - dt
     return t > 0
   end
+end
+local tab = {}
+function util.buffered_keypressed(k, t)
+  if tab[k] then return tab[k] end
+  tab[k] = love.keypressed
+    :filter(util.equal(k))
+    :flatMap(function()
+      return love.update:takeWhile(util.time(t or 0.1))
+    end)
+  return tab[k]
 end

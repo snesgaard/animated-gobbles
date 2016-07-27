@@ -83,7 +83,7 @@ love.update:subscribe(function(dt)
     coroutine.resume(co, id)
   end
   update.movement(gamedata, level)
-  state_update:onNext(dt)
+  state_engine.update:onNext(dt)
   --state_engine.update()
   entity_engine.update(dt)
   animation.update()

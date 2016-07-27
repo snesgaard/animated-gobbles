@@ -5,18 +5,19 @@ state_engine = {}
 -- Function which request a change to a new collection of state functions
 -- Global optional arguments can be supplied
 -- Changes will be handled during the next update
-function state_engine.get(id, state, ...)
+function state_engine.get(id)
   local s = subs[id]
   if not s then
+    print("new")
     s = {}
-    subs[id] = nil
+    subs[id] = s
   end
   return s
 end
 -- Function which request a complete removal of state thread
 -- Changes will be handled during the next update
 function state_engine.clear(id)
-  map(subs[id] or {}, function(s) s:unsubscribe() end)
+  for k, s in pairs(subs[id] or {}) do s:unsubscribe() end
   subs[id] = {}
 end
 -- Updates the states of all entities based on request
