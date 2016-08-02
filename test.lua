@@ -25,6 +25,28 @@ gfx = love.graphics
 local camera_id
 local fb = {}
 
+-- Create stream for buffered input
+-- Here each key press is repeated for 150ms
+-- This is primarily for catching inputs from the past
+local repeat_key_streams = {}
+local repeat_key_tags = {}
+love.bufferedpressed = rx.Subject.create()
+love.keypressed
+  :subscribe(function(k)
+    if repeat_key_streams[k] then
+      repeat_key_streams[k]:unsubscribe()
+    end
+    repeat_key_tags[k] = repeat_key_tags[k] or 1
+    local tag = repeat_key_tags[k]
+    repeat_key_tags[k] = tag < 1000 and tag + 1 or 1
+    repeat_key_streams[k] = love.update
+      :takeUntil(love.update:skipWhile(util.time(0.15)))
+      :map(function() return k, tag end)
+      :subscribe(function(...)
+        love.bufferedpressed:onNext(...)
+      end)
+  end)
+
 function love.load()
   camera_id = setdefaults()
   level = sti.new("resource/test3.lua")
@@ -88,6 +110,7 @@ love.update:subscribe(function(dt)
   entity_engine.update(dt)
   animation.update()
   collision_engine.update(dt)
+  entity_engine.sequence_sync:onNext(dt)
 end)
 
 love.keypressed

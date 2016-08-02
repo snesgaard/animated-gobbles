@@ -61,6 +61,12 @@ function fold(f, l, init)
   return init
 end
 
+function flip(t)
+  local res = {}
+  for k, v in pairs(t) do res[v] = k end
+  return res
+end
+
 function util.equal(...)
   local args = {...}
   return function(c)
@@ -79,11 +85,25 @@ function util.time(t)
 end
 local tab = {}
 function util.buffered_keypressed(k, t)
-  if tab[k] then return tab[k] end
-  tab[k] = love.keypressed
+  return love.keypressed
     :filter(util.equal(k))
     :flatMap(function()
       return love.update:takeWhile(util.time(t or 0.1))
     end)
-  return tab[k]
+end
+
+function util.timed(t)
+  return state_engine.update
+    :takeWhile(function(dt)
+      t = t - dt
+      return t > 0
+    end)
+end
+
+function util.wait(t)
+  return state_engine.update
+    :skipWhile(function(dt)
+      t = t - dt
+      return t > 0
+    end)
 end
