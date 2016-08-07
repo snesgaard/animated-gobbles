@@ -14,10 +14,10 @@ require "draw_engine"
 require "state_engine"
 require "collision_engine"
 require "entity_engine"
-require "sfx"
 require "debug_console"
 
-require "actor/gobbles/base"
+require "actor/gobbles"
+require "actor/sfx"
 require "prop/latern_A"
 
 gfx = love.graphics
@@ -78,6 +78,7 @@ function love.load()
     end
   end
   concurrent.detach(camera.follow, camera_id, ent_table.player, level)
+  initresource(gamedata, init.blast_A, 200, -100, 1)
   --initresource(gamedata, init.gobbles, 200, -100)
   --initresource(gamedata, init.blast, 100, 100)
 
@@ -97,6 +98,15 @@ end
 
 state_update = rx.Subject.create()
 
+free_stream = rx.Subject.create()
+free_stream
+  :subscribe(function(id)
+    collision_engine.stop(id)
+    animation.erase(id)
+    entity_engine.stop(id)
+    freeresource(gamedata, id)
+  end)
+
 love.update:subscribe(function(dt)
   -- Clean resources for next
   update.system(dt)
@@ -106,11 +116,11 @@ love.update:subscribe(function(dt)
   end
   update.movement(gamedata, level)
   state_engine.update:onNext(dt)
+  entity_engine.sequence_sync:onNext(dt)
   --state_engine.update()
   entity_engine.update(dt)
   animation.update()
   collision_engine.update(dt)
-  entity_engine.sequence_sync:onNext(dt)
 end)
 
 love.keypressed
@@ -125,35 +135,39 @@ love.draw:subscribe(function()
   gfx.clear({0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0})
   gfx.setStencilTest()
 
-  for id, _ in pairs(gamedata.tag.entity) do
-    local draw = gamedata.radiometry.draw[id]
-    if draw then coroutine.resume(draw, id) end
-  end
-  for id, _ in pairs(gamedata.tag.sfx) do
-    local draw = gamedata.radiometry.draw[id]
-    if draw then coroutine.resume(draw, id) end
-  end
   local sqdraw = draw_engine.create_primitive(function()
     gfx.setColor(255, 255, 255, 255)
     gfx.rectangle("fill", 100, 100, 100, 20)
   end, false, true, true)
   local leveldraw = draw_engine.create_level(level, "geometry")
   local bgdraw = draw_engine.create_level(level, "background")
+
+  local draw_fg_sfx = function()
+    goobles_drawing_stuff.color(false)
+    --draw_engine.type_drawer.sfx.color(false)
+    draw_engine.foreground_draw:onNext(false)
+    sqdraw.color()
+  end
   -- SFX
-  goobles_drawing_stuff.color(false)
-  draw_engine.type_drawer.sfx.color(false)
-  sqdraw.color()
+  --goobles_drawing_stuff.color(false)
+  --draw_engine.type_drawer.sfx.color(false)
+  --draw_engine.draw_signal:onNext{type = "foreground", opague = false}
+  --sqdraw.color()
+  draw_fg_sfx()
   gfx.setStencilTest("equal", 0)
   gfx.stencil(function()
+    --draw_fg_sfx()
     goobles_drawing_stuff.stencil(false)
     sqdraw.stencil(false)
-    draw_engine.type_drawer.sfx.stencil(false)
+    draw_engine.foreground_stencil:onNext(false)
+    --draw_engine.type_drawer.sfx.stencil(false)
     --draw_engine.type_drawer.sfx.stencil(false)
   end, "replace", 2, false)
   -- Foreground
   gfx.setBlendMode("alpha")
   leveldraw.color(true)
   goobles_drawing_stuff.color(true)
+  draw_engine.foreground_draw:onNext(true)
   -- Draw ambient light
   gfx.setBlendMode("alpha")
   draw_engine.ambient(scenemap, colormap, {100, 100, 255, 255}, 0.4)
@@ -161,6 +175,7 @@ love.draw:subscribe(function()
   gfx.stencil(function()
     goobles_drawing_stuff.stencil(true)
     leveldraw.stencil(true)
+    draw_engine.foreground_stencil:onNext(true)
   end, "replace", 1, true)
   gfx.setStencilTest("equal", 1)
   -- Now do light rendering

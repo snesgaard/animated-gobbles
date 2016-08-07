@@ -113,6 +113,7 @@ function animation.entitydraw(id, func)
   return func(system.dt, x, -y, 0, f, 1)
 end
 
+local bleh_q = love.graphics.newQuad(0, 0, 32, 32, 32, 32)
 local _all_batch_ids = {}
 local function _fetch_batch_id(atlas_id, id)
   local batch_ids = _all_batch_ids[atlas_id]
@@ -153,6 +154,14 @@ function animation.play(id, ...)
 end
 function animation.stop(id)
   _entity_animations[id] = nil
+end
+function animation.erase(id)
+  animation.stop(id)
+  for atlas_id, batch_table in pairs(_all_batch_ids) do
+    local _atlas = resource.atlas.color[atlas_id]
+    local bid = batch_table[id]
+    if bid then _atlas:set(bid, 0, 0, 0, 0, 0) end
+  end
 end
 function animation.release(id, ...)
   local atlases = {...}

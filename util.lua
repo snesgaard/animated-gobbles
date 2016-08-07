@@ -83,13 +83,18 @@ function util.time(t)
     return t > 0
   end
 end
-local tab = {}
-function util.buffered_keypressed(k, t)
-  return love.keypressed
-    :filter(util.equal(k))
-    :flatMap(function()
-      return love.update:takeWhile(util.time(t or 0.1))
-    end)
+local buffered_keysubject = {}
+function util.replay_keypressed(key, time)
+  obs = buffered_keysubject[key]
+  if not s then
+    local obs = rx.ReplaySubject.create(1)
+    love.keypressed
+      :filter(function(k) return k == key end)
+      :map(function(k) return k, love.timer.getTime() end)
+      :subscribe(obs)
+      buffered_keysubject[key] = obs
+  end
+  return obs:filter(function(k, t) return love.timer.getTime() - t > time end)
 end
 
 function util.timed(t)
