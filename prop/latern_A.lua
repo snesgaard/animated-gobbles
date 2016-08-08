@@ -16,7 +16,7 @@ local function draw_flare(id)
   local spa = gamedata.spatial
   local x = spa.x[id] - 0.5
   local y = spa.y[id]
-  local s = spa.height[id]
+  local s = spa.height[id] or 0
   gfx.setColor(100, 50, 0, 50)
   gfx.circle("fill", x, -y, 3.5 * s, 10)
   gfx.setColor(200, 200, 0, 50)

@@ -1,5 +1,9 @@
 require "math"
 
+local function create_event(id, type)
+  return {id = id, type = type}
+end
+
 local function sequence(id, width, height, vx, time, type, from, to)
   local frames = math.min(#width, #height)
   vx = vx or {}
@@ -52,6 +56,10 @@ local function sequence(id, width, height, vx, time, type, from, to)
       t = ft + t
       i = i + dir
       if i > to or i < from then i, dir = border(i, dir) end
+      if dir == 0 then
+        local e = create_event(id, entity_engine.event_types.done)
+        entity_engine.event:onNext(e)
+      end
       while dir == 0 do coroutine.yield() end
     end
   end
@@ -69,3 +77,8 @@ end
 function entity_engine.update(dt)
   for id, co in pairs(_sequences) do coroutine.resume(co, dt) end
 end
+entity_engine.event = rx.Subject.create()
+entity_engine.event_types = flip({
+  "done", "start"
+})
+entity_engine.sequence_sync = rx.Subject.create()

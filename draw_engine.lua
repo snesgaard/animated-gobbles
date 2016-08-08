@@ -2,6 +2,9 @@ require "io"
 
 draw_engine = {}
 
+draw_engine.foreground_draw = rx.Subject.create()
+draw_engine.foreground_stencil = rx.Subject.create()
+
 local shaders = {}
 local colormap
 local normalmap

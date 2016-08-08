@@ -20,6 +20,13 @@ function allocresource(resource)
 end
 function freeresource(resource, id)
   table.insert(available_id[resource], id)
+  local function _erase(t, id)
+    t[id] = nil
+    for _, sub in pairs(t) do
+      if type(sub) == "table" then _erase(sub, id) end
+    end
+  end
+  _erase(resource, id)
 end
 function initresource(resource, f, ...)
   local id = allocresource(resource)

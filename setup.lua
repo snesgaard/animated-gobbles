@@ -23,13 +23,13 @@ renderbox = {
 }
 
 
-function love.keypressed(key, isrepeat)
-  system.pressed[key] = system.time
-end
+--function love.keypressed(key, isrepeat)
+--  system.pressed[key] = system.time
+--end
 
-function love.keyreleased(key, isrepeat)
-  system.released[key] = system.time
-end
+--function love.keyreleased(key, isrepeat)
+--  system.released[key] = system.time
+--end
 
 -- redefine coroutine resume to be a bit more verbose
 _coroutine_resume = coroutine.resume
