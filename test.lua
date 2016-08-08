@@ -42,7 +42,7 @@ function love.load()
   light.create_static(gamedata)
 
   -- Intansiate objects
-  local ent_table = {}
+  ent_table = {}
   for _, obj in pairs(level.layers.entity.objects) do
     local type_parse = parser[obj.type]
     local type_init = init[obj.type]
