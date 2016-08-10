@@ -5,7 +5,7 @@ local _drawer
 
 local sequence_args = {
   blast_A = {
-    key = "blast_A", time = 0.5, callback = {}, type = "once"
+    key = "blast_A", time = 0.55, callback = {}, type = "once"
   }
 }
 
@@ -76,6 +76,8 @@ function init.blast_A(gd, id, x, y, face)
       return e.id == id and e.type == entity_engine.event_types.done
     end)
     :take(1)
-    :map(function(e) return e.id end)
-    :subscribe(free_stream)
+    :map(function(e)
+      return id
+    end)
+    :subscribe(free_entity)
 end

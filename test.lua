@@ -78,7 +78,7 @@ function love.load()
     end
   end
   concurrent.detach(camera.follow, camera_id, ent_table.player, level)
-  initresource(gamedata, init.blast_A, 200, -100, 1)
+  --initresource(gamedata, init.blast_A, 200, -100, 1)
   --initresource(gamedata, init.gobbles, 200, -100)
   --initresource(gamedata, init.blast, 100, 100)
 
@@ -98,14 +98,12 @@ end
 
 state_update = rx.Subject.create()
 
-free_stream = rx.Subject.create()
-free_stream
-  :subscribe(function(id)
-    collision_engine.stop(id)
-    animation.erase(id)
-    entity_engine.stop(id)
-    freeresource(gamedata, id)
-  end)
+function free_entity(id)
+  collision_engine.stop(id)
+  animation.erase(id)
+  entity_engine.stop(id)
+  freeresource(gamedata, id)
+end
 
 love.update:subscribe(function(dt)
   -- Clean resources for next
