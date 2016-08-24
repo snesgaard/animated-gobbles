@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.0" orientation="orthogonal" renderorder="right-down" width="26" height="16" tilewidth="16" tileheight="16" nextobjectid="29">
+ <tileset firstgid="1" name="woodtile" tilewidth="16" tileheight="16" tilecount="8">
+  <image source="tileset/woodtile.png" width="128" height="16"/>
+ </tileset>
+ <tileset firstgid="9" name="woodtile3" tilewidth="16" tileheight="16" tilecount="20">
+  <image source="tileset/woodtile3.png" width="32" height="160"/>
+ </tileset>
+ <tileset firstgid="29" name="entity_16x16" tilewidth="16" tileheight="16" tilecount="400">
+  <image source="tileset/entity_16x16.png" width="320" height="320"/>
+  <tile id="0">
+   <properties>
+    <property name="stuff" value="a1"/>
+   </properties>
+  </tile>
+ </tileset>
+ <layer name="background" width="26" height="16">
+  <data encoding="base64" compression="zlib">
+   eJzjYmBg4KID5qETpodfRv0z6p9R/4z6Z9Q/lGMA8RcR4Q==
+  </data>
+ </layer>
+ <layer name="geometry" width="26" height="16">
+  <data encoding="base64" compression="zlib">
+   eJxjYBgFo2AUjAIIYKITZhzFoxiIAQAzALc=
+  </data>
+ </layer>
+ <objectgroup name="entity">
+  <object id="11" type="lantern_A" gid="29" x="76" y="111" width="16" height="16"/>
+  <object id="12" type="lantern_A" gid="29" x="197.667" y="151.667" width="16" height="16"/>
+  <object id="13" type="lantern_A" gid="29" x="318.334" y="110.334" width="16" height="16"/>
+ </objectgroup>
+</map>
