@@ -55,6 +55,7 @@ gamedata = createresource({
     width = {},
     height = {},
     face = {},
+    flip = {},
     ground = {},
   },
   radiometry = {
@@ -68,6 +69,7 @@ gamedata = createresource({
     defense = {},
     attack = {},
     invincibility = {},
+    collection = {},
   },
   tag = {
     point_light = {},
@@ -76,6 +78,16 @@ gamedata = createresource({
     particle = {},
     sfx = {},
     ui = {},
+  },
+  functional = {
+    portrait = {}
+  },
+  card = {
+    image = {},
+    text = {},
+    activate = {},
+    name = {},
+    cost = {},
   }
 })
 

@@ -15,10 +15,18 @@ require "state_engine"
 require "collision_engine"
 require "entity_engine"
 require "debug_console"
+require "combat_engine"
 
 require "actor/gobbles"
 require "actor/sfx"
+require "actor/engineer"
+require "actor/witch"
+require "actor/testbox"
+require "prop/prop"
 require "prop/latern_A"
+require "actor/shared"
+
+require "cards/general"
 
 gfx = love.graphics
 
@@ -49,13 +57,34 @@ love.keypressed
 
 function love.load()
   camera_id = setdefaults()
-  level = sti.new("resource/test3.lua")
+  level = sti.new("resource/test4.lua")
+  love.world_mousepressed = love.mousepressed
+    :map(function(x, y, button, isTouch)
+      x, y = camera.inv_transform(camera_id, level, x, y)
+      return x, y, button, isTouch
+    end)
+  love.world_mousereleased = love.mousereleased
+    :map(function(x, y, button, isTouch)
+      x, y = camera.inv_transform(camera_id, level, x, y)
+      return x, y, button, isTouch
+    end)
+  print("transform", camera.inv_transform(camera_id, level, 0, 0))
+  print("transform", camera.inv_transform(camera_id, level, 1920, 0))
+  print("transform", camera.inv_transform(camera_id, level, 1920, 1080))
+  print("transform", camera.inv_transform(camera_id, level, 0, 1080))
+  --love.event.quit()
   renderbox.do_it = false
   -- Load entity
   loader.draw_engine()
+  loader.shared()
   loader.sfx()
+  loader.prop()
   loader.gobbles()
   loader.lantern_A()
+  loader.engineer()
+  loader.witch()
+  loader.testbox()
+  loader.cards()
   --loader.blast()
   --love.event.quit()
   --initresource(gamedata, init.lantern_A, 300, -80)
@@ -77,11 +106,17 @@ function love.load()
       print("entity", obj.name, id)
     end
   end
-  concurrent.detach(camera.follow, camera_id, ent_table.player, level)
-  initresource(gamedata, init.blast_A, 200, -100, 1)
-  --initresource(gamedata, init.gobbles, 200, -100)
-  --initresource(gamedata, init.blast, 100, 100)
 
+  local ally = {}
+  local enemy = {}
+  table.insert(ally, initresource(gamedata, init.engineer, 145, -133.5))
+  local id = ally[1]
+  local card_collection = {}
+  for i = 1, 30 do table.insert(card_collection, cards.potato) end
+  gamedata.combat.collection[id] = card_collection
+  table.insert(ally, initresource(gamedata, init.witch, 95, -133.5))
+  table.insert(enemy, initresource(gamedata, init.testbox, 260, -145))
+  combat_engine.start2(ally, enemy)
 end
 
 map_geometry = {}
@@ -98,14 +133,12 @@ end
 
 state_update = rx.Subject.create()
 
-free_stream = rx.Subject.create()
-free_stream
-  :subscribe(function(id)
-    collision_engine.stop(id)
-    animation.erase(id)
-    entity_engine.stop(id)
-    freeresource(gamedata, id)
-  end)
+function free_entity(id)
+  collision_engine.stop(id)
+  animation.erase(id)
+  entity_engine.stop(id)
+  freeresource(gamedata, id)
+end
 
 love.update:subscribe(function(dt)
   -- Clean resources for next
@@ -135,10 +168,6 @@ love.draw:subscribe(function()
   gfx.clear({0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0})
   gfx.setStencilTest()
 
-  local sqdraw = draw_engine.create_primitive(function()
-    gfx.setColor(255, 255, 255, 255)
-    gfx.rectangle("fill", 100, 100, 100, 20)
-  end, false, true, true)
   local leveldraw = draw_engine.create_level(level, "geometry")
   local bgdraw = draw_engine.create_level(level, "background")
 
@@ -146,19 +175,16 @@ love.draw:subscribe(function()
     goobles_drawing_stuff.color(false)
     --draw_engine.type_drawer.sfx.color(false)
     draw_engine.foreground_draw:onNext(false)
-    sqdraw.color()
   end
   -- SFX
   --goobles_drawing_stuff.color(false)
   --draw_engine.type_drawer.sfx.color(false)
   --draw_engine.draw_signal:onNext{type = "foreground", opague = false}
-  --sqdraw.color()
   draw_fg_sfx()
   gfx.setStencilTest("equal", 0)
   gfx.stencil(function()
     --draw_fg_sfx()
     goobles_drawing_stuff.stencil(false)
-    sqdraw.stencil(false)
     draw_engine.foreground_stencil:onNext(false)
     --draw_engine.type_drawer.sfx.stencil(false)
     --draw_engine.type_drawer.sfx.stencil(false)
@@ -170,7 +196,7 @@ love.draw:subscribe(function()
   draw_engine.foreground_draw:onNext(true)
   -- Draw ambient light
   gfx.setBlendMode("alpha")
-  draw_engine.ambient(scenemap, colormap, {100, 100, 255, 255}, 0.4)
+  draw_engine.ambient(scenemap, colormap, {255, 255, 200, 255}, 0.5)
   gfx.setBlendMode("add")
   gfx.stencil(function()
     goobles_drawing_stuff.stencil(true)
@@ -200,11 +226,12 @@ love.draw:subscribe(function()
   bgdraw.color(true)
   draw_engine.type_drawer.lantern_A.color(true)
   gfx.setBlendMode("screen")
-  draw_engine.ambient(scenemap, colormap, {100, 100, 255, 255}, 0.2)
+  draw_engine.ambient(scenemap, colormap, {255, 255, 100, 255}, 0.3)
 
   local occlusion = function()
     leveldraw.occlusion()
     goobles_drawing_stuff.occlusion(true)
+    draw_engine.foreground_occlusion:onNext(true)
   end
 
   for id, _ in pairs(gamedata.tag.point_light) do
@@ -214,6 +241,7 @@ love.draw:subscribe(function()
   draw_engine.glow(glowmap)
   if not debug.buffer_view then
     draw_engine.final_render(scenemap, glowmap)
+
 
     gfx.setBlendMode("screen")
     gfx.setCanvas()
@@ -242,15 +270,12 @@ love.draw:subscribe(function()
       gfx.pop()
     end
 
-    for id, _ in pairs(gamedata.tag.ui) do
-      local draw = gamedata.radiometry.draw[id]
-      if draw then
-        local status, _ = coroutine.resume(draw, id)
-        if coroutine.status(draw) == "dead" then
-          gamedata.radiometry.draw[id] = nil
-        end
-      end
-    end
+    gfx.setBlendMode("alpha")
+    gfx.origin()
+    camera.transformation(camera_id, level)
+    draw_engine.world_ui_draw:onNext(true)
+    gfx.origin()
+    draw_engine.screen_ui_draw:onNext(true)
   else
     gfx.setBlendMode("screen")
     gfx.setCanvas()

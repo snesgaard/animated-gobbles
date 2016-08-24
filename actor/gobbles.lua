@@ -314,8 +314,13 @@ function gobbles.furnace_blade_B(id)
 end
 
 function gobbles.blast_A(id)
+  local x = gamedata.spatial.x[id]
+  local y = gamedata.spatial.y[id]
   local f = gamedata.spatial.face[id]
-  subject.horizontal_speed:onNext(rx.Observable.fromValue(-f * 50))
+
+  initresource(gamedata, init.blast_A, x + 24 * f, y + 25, f)
+
+  subject.horizontal_speed:onNext(rx.Observable.fromValue(-f * 80))
   subject.vertical_speed:onNext(rx.Observable.fromValue(130))
   subject.face:onNext(rx.Observable.fromValue(f))
   subject.sequence:onNext(rx.Observable.fromValue(sequence_args.blast_A))

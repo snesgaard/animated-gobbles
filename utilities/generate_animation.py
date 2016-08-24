@@ -44,7 +44,6 @@ frame_shape = (int(args.height), int(args.width))
 if len(args.path) < 1:
     print "Please provide animation frame and hitbox in that order"
     sys.exit(-5)
-
 animation_im = cv2.imread(args.path[0], -1)
 # Encode hitbox color as hexadecimal numbers
 hitbox_im = np.zeros(animation_im.shape, dtype = "uint32")
@@ -138,7 +137,7 @@ hitbox_border_dic = dict(zip(colorhashes, hitbox_seq_border))
 for key in hitbox_border_dic.keys():
     hitbox_border_dic[key] = map(total_frame_border, hitbox_border_dic[key])
 # Let us take the default
-entity_seq = [(0, 0, frame_shape[0], frame_shape[1])] * frames
+entity_seq = [(0, 0, frame_shape[1], frame_shape[0])] * frames
 if hitbox_border_dic.has_key(0xff00):
     entity_seq = hitbox_border_dic[0xff00]
 

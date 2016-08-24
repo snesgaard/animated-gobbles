@@ -26,7 +26,7 @@ $WACOMSET "$FINGERPAD" $LEFTBOTTOM "key ctrl"
 # Bind lower right to zoom out
 $WACOMSET "$FINGERPAD" $RIGHTBOTTOM "key -"
 # Bind upper right to zoom in
-$WACOMSET "$FINGERPAD" $RIGHTTOP "key alt" "o"
+$WACOMSET "$FINGERPAD" $RIGHTTOP "key +"
 # Bind upper button to CTRL + Z for eraser
 $WACOMSET "$ERASER" $TOPBUTTON "key ctrl" "z"
 # Bind lower button to middle mouse (drag things around) for eraser
