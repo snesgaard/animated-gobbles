@@ -57,7 +57,12 @@ vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
         vec2 l = -normalize(
             vec2(texture_coords.x - 0.5, 0.5 - texture_coords.y)
         );
-        amp *= 0.3 + 0.7 * max(0, dot(normal, l));
+        //float dot_prod = max(0, dot(normal, l));
+        float dot_prod = 0.0;
+        if (dot(normal, l) > 0.4) dot_prod = 1;
+        else if (dot(normal, l) > 0.25) dot_prod = 0.75;
+        else if(dot(normal, l) > 0) dot_prod = 0.25;
+        amp *= 0.3 + 0.7 * dot_prod;
     }
     // Calculate attenuation based on the distance to the light source
     float att = clamp(1.0 - polar.y, 0.0, 1.0);

@@ -1,7 +1,6 @@
 require "gamedata" -- THis will generate the global "data" table
 require "input"
 require "coroutine"
-require "combat"
 require ("modules/tilephysics")
 require ("modules/coolision")
 misc = require ("modules/misc")
@@ -82,8 +81,8 @@ function setdefaults()
   local spatial = gamedata.spatial
   spatial.width[camera] = gfx.getWidth() / s
   spatial.height[camera] = gfx.getHeight() / s
-  spatial.x[camera] = 100
-  spatial.y[camera] = -100
+  spatial.x[camera] = gfx.getWidth() * 0.5 / s
+  spatial.y[camera] = - gfx.getHeight() * 0.5 / s - 100
   return camera
 end
 

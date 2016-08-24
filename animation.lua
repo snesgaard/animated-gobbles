@@ -113,6 +113,15 @@ function animation.entitydraw(id, func)
   return func(system.dt, x, -y, 0, f, 1)
 end
 
+function animation.uidraw(id, func)
+  local act = gamedata.spatial
+  local x = act.x[id]
+  local y = act.y[id]
+  local fx = act.face[id] or 1
+  local fy = act.flip[id] or 1
+  return func(system.dt, x, y, 0, fx, fy)
+end
+
 local bleh_q = love.graphics.newQuad(0, 0, 32, 32, 32, 32)
 local _all_batch_ids = {}
 local function _fetch_batch_id(atlas_id, id)
@@ -128,15 +137,17 @@ local function _fetch_batch_id(atlas_id, id)
   end
   return bid
 end
-function animation.entitydrawer(id, atid, anid, time, type, from, to)
+function animation.entitydrawer(arg)
+  local id, atid, anid, time, type, from, to = unpack(arg)
   local batch_id = _fetch_batch_id(atid, id)
   local anime = animation.draw(batch_id, atid, anid, time, type, from, to)
   local g = coroutine.wrap(function(...)
     anime(...)
     signal.send("animation_done@" .. id)
   end)
+  local draw = arg.draw or animation.entitydraw
   local function f(id)
-    animation.entitydraw(id, g)
+    draw(id, g)
     return f(coroutine.yield())
   end
   return coroutine.create(f)
@@ -149,11 +160,15 @@ function animation.update()
     coroutine.resume(co, id)
   end
 end
-function animation.play(id, ...)
-  _entity_animations[id] = animation.entitydrawer(id, ...)
+function animation.play(arg)
+  local id = arg[1]
+  _entity_animations[id] = animation.entitydrawer(arg)
 end
 function animation.stop(id)
   _entity_animations[id] = nil
+end
+function animation.is_playing(id)
+  return _entity_animations[id] ~= nil
 end
 function animation.erase(id)
   animation.stop(id)

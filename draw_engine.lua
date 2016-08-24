@@ -4,6 +4,12 @@ draw_engine = {}
 
 draw_engine.foreground_draw = rx.Subject.create()
 draw_engine.foreground_stencil = rx.Subject.create()
+draw_engine.foreground_occlusion = rx.Subject.create()
+
+draw_engine.foreground_transparent = rx.Subject.create()
+
+draw_engine.screen_ui_draw = rx.Subject.create()
+draw_engine.world_ui_draw = rx.Subject.create()
 
 local shaders = {}
 local colormap
