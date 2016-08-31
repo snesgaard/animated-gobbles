@@ -54,3 +54,4 @@ function cards.generic_init(gd, id)
 end
 
 require "cards/potato"
+require "cards/dump"

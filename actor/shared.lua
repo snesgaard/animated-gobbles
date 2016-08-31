@@ -24,10 +24,15 @@ function loader.shared()
       true
     )
   end)
-
+  for _, id in pairs(portait.anime) do
+    local x = resource.animation.x[id]
+    for i, _ in pairs(x) do x[i] = 0 end
+    local y = resource.animation.y[id]
+    for i, _ in pairs(y) do y[i] = 0 end
+  end
   --TODO make atlast drawer for background
 end
 
-function shared_actor.get_portait()
+function shared_actor.get_portrait()
   return portait.atlas, portait.anime
 end

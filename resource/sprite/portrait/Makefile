@@ -1,5 +1,5 @@
 #partial_hitbox=$(addprefix ./build/, $(notdir $(frames:.png=.lua)))
-frames=$(addprefix ./build/, engineer.png box.png\
+frames=$(addprefix ./build/, engineer.png box.png witch.png\
 				)
 boundries=$(frames:.png=.lua)
 info=info.lua

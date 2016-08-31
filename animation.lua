@@ -124,6 +124,7 @@ end
 
 local bleh_q = love.graphics.newQuad(0, 0, 32, 32, 32, 32)
 local _all_batch_ids = {}
+local _free_batch_ids = {}
 local function _fetch_batch_id(atlas_id, id)
   local batch_ids = _all_batch_ids[atlas_id]
   if not batch_ids then
@@ -132,7 +133,15 @@ local function _fetch_batch_id(atlas_id, id)
   end
   local bid = batch_ids[id]
   if not bid then
-    bid = resource.atlas.color[atlas_id]:add(0, 0, 0, 0, 0)
+    local function _alloc_bid()
+      local _free_table = _free_batch_ids[atlas_id] or {}
+      for bid, bid in pairs(_free_table) do
+        _free_table[bid] = nil
+        return bid
+      end
+      return resource.atlas.color[atlas_id]:add(0, 0, 0, 0, 0)
+    end
+    bid = _alloc_bid()
     batch_ids[id] = bid
   end
   return bid
@@ -175,7 +184,12 @@ function animation.erase(id)
   for atlas_id, batch_table in pairs(_all_batch_ids) do
     local _atlas = resource.atlas.color[atlas_id]
     local bid = batch_table[id]
-    if bid then _atlas:set(bid, 0, 0, 0, 0, 0) end
+    if bid then
+      _atlas:set(bid, 0, 0, 0, 0, 0)
+      local _free_atlas = _free_batch_ids[atlas_id] or {}
+      _free_atlas[bid] = bid
+      _free_batch_ids[atlas_id] = _free_atlas
+     end
   end
 end
 function animation.release(id, ...)

@@ -52,6 +52,6 @@ function init.witch(gd, id, x, y)
   gd.spatial.face[id] = 1
 
   gd.combat.health[id] = 10
-  gd.functional.portrait[id] = function() return "engineer" end
+  gd.functional.portrait[id] = function() return "witch" end
   animation.play{id, atlas, anime.combat_idle, 0.75}
 end

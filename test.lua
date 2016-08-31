@@ -10,12 +10,14 @@ require "io"
 require "light"
 require "math"
 require "camera"
+require "motion"
 require "draw_engine"
 require "state_engine"
 require "collision_engine"
 require "entity_engine"
 require "debug_console"
 require "combat_engine"
+require "script_engine"
 
 require "actor/gobbles"
 require "actor/sfx"
@@ -112,7 +114,8 @@ function love.load()
   table.insert(ally, initresource(gamedata, init.engineer, 145, -133.5))
   local id = ally[1]
   local card_collection = {}
-  for i = 1, 30 do table.insert(card_collection, cards.potato) end
+  for i = 1, 15 do table.insert(card_collection, cards.potato) end
+  for i = 1, 15 do table.insert(card_collection, cards.dump) end
   gamedata.combat.collection[id] = card_collection
   table.insert(ally, initresource(gamedata, init.witch, 95, -133.5))
   table.insert(enemy, initresource(gamedata, init.testbox, 260, -145))
