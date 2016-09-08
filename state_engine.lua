@@ -21,5 +21,5 @@ function state_engine.clear(id)
   subs[id] = {}
 end
 -- Updates the states of all entities based on request
-state_engine.update = rx.Subject.create()
-state_engine.event = rx.Subject.create()
+--state_engine.update = rx.Subject.create()
+--state_engine.event = rx.Subject.create()

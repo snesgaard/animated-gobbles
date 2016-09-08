@@ -77,8 +77,8 @@ end
 function entity_engine.update(dt)
   for id, co in pairs(_sequences) do coroutine.resume(co, dt) end
 end
-entity_engine.event = rx.Subject.create()
+--entity_engine.event = rx.Subject.create()
 entity_engine.event_types = flip({
   "done", "start"
 })
-entity_engine.sequence_sync = rx.Subject.create()
+--entity_engine.sequence_sync = rx.Subject.create()

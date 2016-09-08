@@ -39,9 +39,10 @@ function loader.prop()
 
   --TODO make atlast drawer for background
   local _drawer = draw_engine.create_atlas(fg_atlas)
-  draw_engine.foreground_draw:subscribe(_drawer.color)
-  draw_engine.foreground_stencil:subscribe(_drawer.stencil)
-  draw_engine.foreground_occlusion:subscribe(_drawer.occlusion)
+  draw_engine.foreground.prop = _drawer
+  --draw_engine.foreground_draw:subscribe(_drawer.color)
+  --draw_engine.foreground_stencil:subscribe(_drawer.stencil)
+  --draw_engine.foreground_occlusion:subscribe(_drawer.occlusion)
 end
 
 function prop.get_resource(is_background)

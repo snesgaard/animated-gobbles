@@ -2,14 +2,26 @@ require "io"
 
 draw_engine = {}
 
-draw_engine.foreground_draw = rx.Subject.create()
-draw_engine.foreground_stencil = rx.Subject.create()
-draw_engine.foreground_occlusion = rx.Subject.create()
+draw_engine.signal = {
+  foreground_draw = "foreground_draw",
+  foreground_stencil = "foreground_stencil",
+  foreground_occlusion = "foreground_occlusion",
+  foreground_transparent = "foreground_transparent",
+  screen_ui_draw = "screen_ui_draw",
+  world_ui_draw = "world_ui_draw",
+}
 
-draw_engine.foreground_transparent = rx.Subject.create()
+draw_engine.foreground = {}
+draw_engine.ui = {world = {}, screen = {}}
 
-draw_engine.screen_ui_draw = rx.Subject.create()
-draw_engine.world_ui_draw = rx.Subject.create()
+--draw_engine.foreground_draw = rx.Subject.create()
+--draw_engine.foreground_stencil = rx.Subject.create()
+--draw_engine.foreground_occlusion = rx.Subject.create()
+
+--draw_engine.foreground_transparent = rx.Subject.create()
+
+--draw_engine.screen_ui_draw = rx.Subject.create()
+--draw_engine.world_ui_draw = rx.Subject.create()
 
 local shaders = {}
 local colormap

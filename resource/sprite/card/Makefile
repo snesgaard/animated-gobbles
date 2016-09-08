@@ -1,5 +1,5 @@
 #partial_hitbox=$(addprefix ./build/, $(notdir $(frames:.png=.lua)))
-frames=$(addprefix ./build/, potato.png\
+frames=$(addprefix ./build/, potato.png frame.png cost_icon.png\
 				)
 boundries=$(frames:.png=.lua)
 info=info.lua
@@ -20,9 +20,20 @@ $(hitbox): $(boundries)
 $(sheet): $(frames)
 	@python $(texatlas_script) $^ -i $(info) -s $(sheet)
 
+./build/frame.png: ./frame/frame.png
+	@python $(generate_script) -w 50 -e 70 -f $(@:.lua=.png) -l $(@:.png=.lua) \
+	$<
+
+./build/cost_icon.png: ./frame/cost_icon.png
+	@python $(generate_script) -w 9 -e 9 -f $(@:.lua=.png) -l $(@:.png=.lua) \
+	$<
+
 ./build/%.png: ./frame/%.png
 	@python $(generate_script) -w 32 -e 27 -f $(@:.lua=.png) -l $(@:.png=.lua) \
 	 														$<
+
+
+
 
 
 create_build_dirs:

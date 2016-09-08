@@ -17,6 +17,8 @@ def interpolate(data, mask):
     )
     xym = np.vstack((np.ravel(xx[mask]), np.ravel(yy[mask]))).T
     data0 = np.ravel(data[mask])
+    if np.sum(mask) == 0:
+        return data
     inter_fun = scipy.interpolate.LinearNDInterpolator
     interp0 = inter_fun( xym, data0 )
     result0 = interp0(np.ravel(xx), np.ravel(yy)).reshape( xx.shape )
@@ -28,6 +30,8 @@ def interpolateNN(data, mask):
     )
     xym = np.vstack((np.ravel(xx[mask]), np.ravel(yy[mask]))).T
     data0 = np.ravel(data[mask])
+    if np.sum(mask) == 0:
+        return data
     inter_fun = scipy.interpolate.NearestNDInterpolator
     interp0 = inter_fun( xym, data0 )
     result0 = interp0(np.ravel(xx), np.ravel(yy)).reshape( xx.shape )

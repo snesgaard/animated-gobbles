@@ -4,8 +4,7 @@ init = {}
 parser = {}
 drawer = {}
 
-rx = require "rx"
-require "rx-love"
+suit = require ("modules/SUIT")
 require "io"
 require "light"
 require "math"
@@ -19,7 +18,6 @@ require "debug_console"
 require "combat_engine"
 require "script_engine"
 
-require "actor/gobbles"
 require "actor/sfx"
 require "actor/engineer"
 require "actor/witch"
@@ -28,6 +26,7 @@ require "prop/prop"
 require "prop/latern_A"
 require "actor/shared"
 
+require "deck"
 require "cards/general"
 
 gfx = love.graphics
@@ -38,38 +37,10 @@ local fb = {}
 -- Create stream for buffered input
 -- Here each key press is repeated for 150ms
 -- This is primarily for catching inputs from the past
-local repeat_key_streams = {}
-local repeat_key_tags = {}
-love.bufferedpressed = rx.Subject.create()
-love.keypressed
-  :subscribe(function(k)
-    if repeat_key_streams[k] then
-      repeat_key_streams[k]:unsubscribe()
-    end
-    repeat_key_tags[k] = repeat_key_tags[k] or 1
-    local tag = repeat_key_tags[k]
-    repeat_key_tags[k] = tag < 1000 and tag + 1 or 1
-    repeat_key_streams[k] = love.update
-      :takeUntil(love.update:skipWhile(util.time(0.15)))
-      :map(function() return k, tag end)
-      :subscribe(function(...)
-        love.bufferedpressed:onNext(...)
-      end)
-  end)
 
 function love.load()
   camera_id = setdefaults()
   level = sti.new("resource/test4.lua")
-  love.world_mousepressed = love.mousepressed
-    :map(function(x, y, button, isTouch)
-      x, y = camera.inv_transform(camera_id, level, x, y)
-      return x, y, button, isTouch
-    end)
-  love.world_mousereleased = love.mousereleased
-    :map(function(x, y, button, isTouch)
-      x, y = camera.inv_transform(camera_id, level, x, y)
-      return x, y, button, isTouch
-    end)
   print("transform", camera.inv_transform(camera_id, level, 0, 0))
   print("transform", camera.inv_transform(camera_id, level, 1920, 0))
   print("transform", camera.inv_transform(camera_id, level, 1920, 1080))
@@ -81,7 +52,6 @@ function love.load()
   loader.shared()
   loader.sfx()
   loader.prop()
-  loader.gobbles()
   loader.lantern_A()
   loader.engineer()
   loader.witch()
@@ -114,12 +84,12 @@ function love.load()
   table.insert(ally, initresource(gamedata, init.engineer, 145, -133.5))
   local id = ally[1]
   local card_collection = {}
-  for i = 1, 15 do table.insert(card_collection, cards.potato) end
-  for i = 1, 15 do table.insert(card_collection, cards.dump) end
+  for i = 1, 15 do table.insert(card_collection, 1) end
+  for i = 1, 15 do table.insert(card_collection, 1) end
   gamedata.combat.collection[id] = card_collection
   table.insert(ally, initresource(gamedata, init.witch, 95, -133.5))
   table.insert(enemy, initresource(gamedata, init.testbox, 260, -145))
-  combat_engine.start2(ally, enemy)
+  combat_engine.begin(ally, enemy)
 end
 
 map_geometry = {}
@@ -134,8 +104,6 @@ function map_geometry.diplace(id, dx, dy)
   physics.displace_entity(level, "geometry", id, dx or 0, dy or 0)
 end
 
-state_update = rx.Subject.create()
-
 function free_entity(id)
   collision_engine.stop(id)
   animation.erase(id)
@@ -143,27 +111,24 @@ function free_entity(id)
   freeresource(gamedata, id)
 end
 
-love.update:subscribe(function(dt)
+function love.update(dt)
   -- Clean resources for next
+  signal.reset()
   update.system(dt)
-  signal.send("update", dt)
   for id, co in pairs(gamedata.ai.control) do
     coroutine.resume(co, id)
   end
   update.movement(gamedata, level)
-  state_engine.update:onNext(dt)
-  entity_engine.sequence_sync:onNext(dt)
+--  state_engine.update:onNext(dt)
+  signal.emit("update", dt)
+  --entity_engine.sequence_sync:onNext(dt)
   --state_engine.update()
   entity_engine.update(dt)
   animation.update()
   collision_engine.update(dt)
-end)
+end
 
-love.keypressed
-  :filter(util.equal("escape"))
-  :subscribe(love.event.quit)
-
-love.draw:subscribe(function()
+function love.draw()
   camera.transformation(camera_id, level)
   -- Clear canvas
   local scenemap, colormap, glowmap, normalmap = draw_engine.get_canvas()
@@ -175,9 +140,13 @@ love.draw:subscribe(function()
   local bgdraw = draw_engine.create_level(level, "background")
 
   local draw_fg_sfx = function()
-    goobles_drawing_stuff.color(false)
+    --goobles_drawing_stuff.color(false)
     --draw_engine.type_drawer.sfx.color(false)
-    draw_engine.foreground_draw:onNext(false)
+    --draw_engine.foreground_draw:onNext(false)
+    --signal.emit(draw_engine.signal.foreground_draw, false)
+    for _, f in pairs(draw_engine.foreground) do
+      f.color(false)
+    end
   end
   -- SFX
   --goobles_drawing_stuff.color(false)
@@ -187,24 +156,32 @@ love.draw:subscribe(function()
   gfx.setStencilTest("equal", 0)
   gfx.stencil(function()
     --draw_fg_sfx()
-    goobles_drawing_stuff.stencil(false)
-    draw_engine.foreground_stencil:onNext(false)
+    --goobles_drawing_stuff.stencil(false)
+    --draw_engine.foreground_stencil:onNext(false)
+    --signal.emit(draw_engine.signal.foreground_stencil, false)
     --draw_engine.type_drawer.sfx.stencil(false)
     --draw_engine.type_drawer.sfx.stencil(false)
+    for _, f in pairs(draw_engine.foreground) do
+      f.stencil(false)
+    end
   end, "replace", 2, false)
   -- Foreground
   gfx.setBlendMode("alpha")
   leveldraw.color(true)
-  goobles_drawing_stuff.color(true)
-  draw_engine.foreground_draw:onNext(true)
+  --goobles_drawing_stuff.color(true)
+  --draw_engine.foreground_draw:onNext(true)
+  --signal.emit(draw_engine.signal.foreground_draw, true)
+  for _, f in pairs(draw_engine.foreground) do f.color(true) end
   -- Draw ambient light
   gfx.setBlendMode("alpha")
   draw_engine.ambient(scenemap, colormap, {255, 255, 200, 255}, 0.5)
   gfx.setBlendMode("add")
   gfx.stencil(function()
-    goobles_drawing_stuff.stencil(true)
+    --goobles_drawing_stuff.stencil(true)
     leveldraw.stencil(true)
-    draw_engine.foreground_stencil:onNext(true)
+    --draw_engine.foreground_stencil:onNext(true)
+    --signal.emit(draw_engine.signal.foreground_stencil, true)
+    for _, f in pairs(draw_engine.foreground) do f.stencil(true) end
   end, "replace", 1, true)
   gfx.setStencilTest("equal", 1)
   -- Now do light rendering
@@ -233,8 +210,10 @@ love.draw:subscribe(function()
 
   local occlusion = function()
     leveldraw.occlusion()
-    goobles_drawing_stuff.occlusion(true)
-    draw_engine.foreground_occlusion:onNext(true)
+    --goobles_drawing_stuff.occlusion(true)
+    --draw_engine.foreground_occlusion:onNext(true)
+    --signal.emit(draw_engine.signal.foreground_occlusion, true)
+    for _, f in pairs(draw_engine.foreground) do f.occlusion(true) end
   end
 
   for id, _ in pairs(gamedata.tag.point_light) do
@@ -276,9 +255,13 @@ love.draw:subscribe(function()
     gfx.setBlendMode("alpha")
     gfx.origin()
     camera.transformation(camera_id, level)
-    draw_engine.world_ui_draw:onNext(true)
+    --draw_engine.world_ui_draw:onNext(true)
+    --signal.emit(draw_entity.signal.world_ui_draw)
+    for _, f in pairs(draw_engine.ui.world) do f() end
     gfx.origin()
-    draw_engine.screen_ui_draw:onNext(true)
+    --draw_engine.screen_ui_draw:onNext(true)
+    for _, f in pairs(draw_engine.ui.screen) do f() end
+    --signal.emit(draw_entity.signal.screen_ui_draw)
   else
     gfx.setBlendMode("screen")
     gfx.setCanvas()
@@ -306,4 +289,4 @@ love.draw:subscribe(function()
   gfx.setShader()
   gfx.setBlendMode("alpha")
   --for _, atlas in pairs(resource.atlas.color) do atlas:clear() end
-end)
+end

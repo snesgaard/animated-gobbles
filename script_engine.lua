@@ -29,5 +29,3 @@ local function update(dt)
     queue[id] = _update(q)
   end
 end
-
-love.update:subscribe(update)

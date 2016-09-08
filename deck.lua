@@ -32,7 +32,7 @@ function deck.peek(_deck, _pile, _card)
     error(_pile .. " was not found in deck")
   end
   if _card < 1 or _card > #_pool then
-    error(_card .. " exceeds pile " .. _pile .. " with size " .. #_pool)
+    error(_card .. " exceeds pile <" .. _pile .. "> with size " .. #_pool)
   end
   return _pool[_card]
 end

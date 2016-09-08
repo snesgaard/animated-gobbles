@@ -1,9 +1,13 @@
 target=gobbles card engineer portrait prop sfx witch
-sheet=$(target:=/sheet.png)
+clean_target = $(target:%=clean-%)
+# %sheet=$(target:=/sheet.png)
 
-all: $(sheet)
+all: $(target)
+$(target):
+	make -C $@
 
-%.png:
-	@cd $(dir $@)
-	@make
-	@cd ..
+clean: $(clean_target)
+$(clean_target):
+	make -C $(@:clean-%=%) clean
+
+.PHONY: all $(target)

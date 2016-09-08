@@ -58,10 +58,11 @@ function loader.sfx()
     )
   end)
   _drawer = draw_engine.create_atlas(_atlas)
-  draw_engine.foreground_draw
-    :subscribe(_drawer.color)
-  draw_engine.foreground_stencil
-    :subscribe(_drawer.stencil)
+  draw_engine.foreground.sfx = _drawer
+  --draw_engine.foreground_draw
+  --  :subscribe(_drawer.color)
+  --draw_engine.foreground_stencil
+  --  :subscribe(_drawer.stencil)
 end
 
 function init.blast_A(gd, id, x, y, face)

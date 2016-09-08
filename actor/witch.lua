@@ -37,9 +37,10 @@ function loader.witch()
   end)
 
   local _drawer = draw_engine.create_atlas(atlas)
-  draw_engine.foreground_draw:subscribe(_drawer.color)
-  draw_engine.foreground_stencil:subscribe(_drawer.stencil)
-  draw_engine.foreground_occlusion:subscribe(_drawer.occlusion)
+  draw_engine.foreground.witch = _drawer
+  --draw_engine.foreground_draw:subscribe(_drawer.color)
+  --draw_engine.foreground_stencil:subscribe(_drawer.stencil)
+  --draw_engine.foreground_occlusion:subscribe(_drawer.occlusion)
 end
 
 function init.witch(gd, id, x, y)
