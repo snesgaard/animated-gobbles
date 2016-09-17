@@ -21,25 +21,26 @@ function combat_engine.next_round()
   return combat_engine.round(data.current_turn)
 end
 
-function pick_card_from_hand(id)
+local function pick_card_from_hand(id, hovered)
   local hand = data.decks[id].hand
   local card_activated
   for i, card_id in pairs(hand) do
-    local x = 1000 - i * 100
-    gamedata.spatial.x[card_id] = x
-    gamedata.spatial.y[card_id] = 720
-    local card_ui = cards.render(card_id)
-    if card_ui.hit then
-      print("spoof")
-      --card_activated = card_activated or card_id
-    end
+    gamedata.spatial.x[card_id] = 40 + (#hand + 1 - i  - 1) * 180
+    gamedata.spatial.y[card_id] = 750
   end
-  return card_activated
+  --local hand_ui = cards.batch_render(hand, 40, 750)
+  local next_hovered
+  for i, card_id in pairs(hand) do
+    local card_ui = cards.render(card_id, card_id == hovered)
+    next_hovered = (card_ui.hovered and not next_hovered) and card_id or next_hovered
+  end
+  coroutine.yield()
+  return pick_card_from_hand(id, next_hovered)
 end
 
 
-function combat_engine.player_script(id)
-  local card_id = pick_card_from_hand(id)
+local function _run_player_script(id, card_picker)
+  local card_id = card_picker(id)
   if card_id then
     combat_engine.activate_card(card_id)
     combat_engine.discard(card_id, id)
@@ -48,7 +49,12 @@ function combat_engine.player_script(id)
   if end_turn then return combat_engine.next_round() end
   signal.listen("update")
   --coroutine.yield()
-  return combat_engine.player_script(id)
+  return _run_player_script(id, card_picker)
+end
+
+function combat_engine.player_script(id)
+  local card_picker = coroutine.wrap(pick_card_from_hand)
+  return _run_player_script(id, card_picker)
 end
 
 function combat_engine.begin(allies, enemies)
@@ -63,7 +69,8 @@ function combat_engine.begin(allies, enemies)
     data.decks[id].draw = map(function() return cards.init() end, collection)
     deck.shuffle(data.decks[id], "draw")
     data.script[id] = combat_engine.player_script
-    for i = 1, deck.size(data.decks[id], "draw") do
+    local draw_size = deck.size(data.decks[id], "draw")
+    for i = 1, math.min(draw_size, 10) do
       local card_id = deck.draw(data.decks[id], "draw")
       deck.insert(data.decks[id], "hand", card_id)
     end

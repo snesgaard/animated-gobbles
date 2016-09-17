@@ -29,7 +29,7 @@ $(sheet): $(frames)
 	$<
 
 ./build/%.png: ./frame/%.png
-	@python $(generate_script) -w 32 -e 27 -f $(@:.lua=.png) -l $(@:.png=.lua) \
+	@python $(generate_script) -w 44 -e 27 -f $(@:.lua=.png) -l $(@:.png=.lua) \
 	 														$<
 
 
