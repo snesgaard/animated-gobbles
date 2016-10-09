@@ -42,6 +42,22 @@ function camera.inv_transform(id, level, x, y)
   return x / sx - tx , -y / sy + ty
 end
 
+function camera.transform(id, level, x, y)
+  local cw = gamedata.spatial.width[id]
+  local ch = gamedata.spatial.height[id]
+  local sx = gfx.getWidth() / cw
+  local sy = gfx.getHeight() / ch
+
+  local cx, cy = gamedata.spatial.x[id], gamedata.spatial.y[id]
+  if level then
+    cx, cy = camera.limit_map(id, level)
+  end
+  local tx = cw * 0.5 - cx
+  local ty = ch * 0.5 + cy
+  return sx * (x + tx), -sy * (y - ty)
+end
+
+
 function camera.limit_map(id, level)
   local spatial = gamedata.spatial
   local x = spatial.x[id]

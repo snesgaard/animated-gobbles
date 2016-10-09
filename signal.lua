@@ -1,62 +1,209 @@
-require "coroutine"
+local _MAGIC_NUMBER = 0xDEADBABE
+
+local function _filter(condition)
+  return function(next)
+    return function(...) if condition(...) then return next(...) end end
+  end
+end
+
+local function _any()
+  return _filter(function(...)
+    local arg = {...}
+    return #arg > 0
+  end)
+end
+
+local function _none()
+  return _filter(function(...)
+    local arg = {...}
+    return #arg == 0
+  end)
+end
+
+local function _map(M)
+  return function(next)
+    local t = type(M)
+    if t == "function" then
+      return function(...) return next(M(...)) end
+    elseif t == "thread" then
+      return function(...)
+        local arg = {coroutine.resume(M, ...)}
+        for i, v in pairs(arg) do arg[i] = arg[i + 1] end
+        return next(unpack(arg))
+      end
+    end
+  end
+end
+
+local function _future(f)
+  return function(next)
+    return function(...)
+      local co = coroutine.create(f(...))
+      local function _future_run(dt)
+        local arg = coroutine.resume(co, dt)
+        if not arg[1] then return end
+        for i, val in ipairs(arg) do
+          arg[i] = arg[i + 1]
+        end
+        if #arg > 0 then return next(unpack(arg)) end
+        return _future_run(coroutine.yield())
+      end
+      tscript.run(_future_run)
+    end
+  end
+end
+
+local function _compile(agg)
+  local init_fun = agg[#agg]
+  agg[#agg] = nil
+  for i = #agg, 1, -1  do
+    local _partial_compiler = agg[i]
+    init_fun = _partial_compiler(init_fun)
+  end
+  return init_fun
+end
+
+local _branch
+
+local function _leaf(f, builders)
+  return function(...)
+    table.insert(builders, f(...))
+    return _branch(builders)
+  end
+end
+
+_branch = function(builders)
+  return {
+    _magic_number = _MAGIC_NUMBER, -- Replace with metatable
+    filter = _leaf(_filter, builders),
+    map = _leaf(_map, builders),
+    future = _leaf(_future, builders),
+    any = _leaf(_any, builders),
+    none = _leaf(_none, builders),
+    listen = function(f)
+      local tf = type(f)
+      if tf == "function" then
+        table.insert(builders, f)
+      elseif tf == "string" or tf == "number" or tf == "table" then
+        table.insert(builders, function(...) signal.emit(f, ...) end)
+      else
+        error("Unsupported type: " .. tf)
+      end
+      local token = _compile(builders)
+      -- return token
+      return token
+    end,
+    fork = function(...)
+      local branches = {...}
+      for i, b in pairs(branches) do
+        local t = type(b)
+        if t == "function" then
+          -- Do nothing
+        elseif t == "string" or t == "number" or t == "table" then
+          branches[i] = function(...) signal.emit(b, ...) end
+        else
+          error("Unsupported type: " .. t)
+        end
+      end
+      table.insert(builders, function(...)
+        for _, b in ipairs(branches) do b(...) end
+      end)
+      return _compile(builders)
+    end,
+  }
+end
+
+local sig_table = {}
+local all_cache = {}
+
+local function fetch_entry(id)
+  local entry = sig_table[id]
+  if not entry then
+    entry = {}
+    sig_table[id] = entry
+  end
+  return entry
+end
+
+local function fetch_cache(id)
+  local cache = all_cache[id]
+  if not cache then
+    cache = {}
+    all_cache[id] = cache
+  end
+  return cache
+end
 
 signal = {}
 
-local all_connections = {}
-
-local pendantic = false
-
-local function fetch_connection(id)
-  local id_connection = all_connections[id]
-  if not id_connection then
-    id_connection = {}
-    all_connections[id] = id_connection
-  end
-  return id_connection
+function signal.type(id)
+  local builders = {}
+  table.insert(builders, function(next)
+    return function()
+      local entry = fetch_entry(id)
+      local cache = fetch_cache(id)
+      for _, sig in pairs(cache) do
+        next(unpack(sig))
+      end
+      table.insert(entry, next)
+    end
+  end)
+  return _branch(builders)
 end
 
-local function set_connection(id, val)
-  all_connections[id] = val
+function signal.from_value()
+  local builders = {}
+  table.insert(builders, function(next)
+    return function(...) return next(...) end
+  end)
+  return _branch(builders)
 end
 
-function signal.set_pedantic(val)
-  pendantic = val
+function signal.from_table()
+  local builders = {}
+  table.insert(builders, function(next)
+    return function(t)
+      if type(t) ~= "table" then error("Table expected, got " .. type(t)) end
+      for val, key in pairs(t) do
+        return next(val, key)
+      end
+    end
+  end)
+  return _branch(builders)
+end
+
+function signal.merge(...)
+  local builders = {}
+  local parents = {...}
+  table.insert(builders, function(next)
+    local tokens = map(function(p)
+      local t = type(p)
+      if t == "table" and p._magic_number == _MAGIC_NUMBER then
+        return p.listen(next)
+      elseif t == "table" or t == "number" or t == "string" then
+        return signal.type(p).listen(next)
+      else
+        error("Unsupported type:", t)
+      end
+    end, parents)
+    return function()
+      for _, t in pairs(tokens) do
+        print(t)
+        t()
+      end
+    end
+  end)
+  return _branch(builders)
 end
 
 function signal.emit(id, ...)
-  local id_connection = fetch_connection(id)
-  set_connection(id)
-  for _, co in pairs(id_connection) do
-    coroutine.resume(co, ...)
-  end
+  local entries = fetch_entry(id)
+  local cache = fetch_cache(id)
+  table.insert(cache, {...})
+  for _, react in pairs(entries) do react(...) end
 end
 
-function signal.listen(id, ...)
-  local co = coroutine.running()
-  local id_connection = fetch_connection(id)
-  table.insert(id_connection, co)
-  return coroutine.yield(...)
-end
-
-function signal.reset()
-  local prev = all_connections
-  all_connections = {
-    update = prev.update
-  }
-  if pendantic then
-    prev.update = nil
-    local fault = ""
-    local raise_error = false
-    for id, connection in pairs(all_connections) do
-      for _, co in pairs(connection) do
-        if co then
-          fault = fault .. id .. ", "
-          break
-        end
-      end
-    end
-    if raise_error then
-      error("Remains detected in signal " .. fault)
-    end
-  end
+function signal.clear()
+  sig_table = {}
+  all_cache = {}
 end

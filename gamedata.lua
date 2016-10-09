@@ -88,6 +88,9 @@ gamedata = createresource({
     activate = {},
     name = {},
     cost = {},
+    target = {},
+    effects = {},
+    play = {}
   }
 })
 

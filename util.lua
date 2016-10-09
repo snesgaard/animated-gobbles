@@ -83,3 +83,7 @@ function util.time(t)
     return t > 0
   end
 end
+
+function print_table(t)
+  for key, val in pairs(t) do print(key, val) end
+end

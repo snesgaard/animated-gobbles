@@ -15,8 +15,9 @@ require "state_engine"
 require "collision_engine"
 require "entity_engine"
 require "debug_console"
-require "combat_engine"
+require "combat/combat_engine"
 require "script_engine"
+require "temporal_script"
 
 require "actor/sfx"
 require "actor/engineer"
@@ -31,12 +32,24 @@ require "cards/general"
 
 gfx = love.graphics
 
-local camera_id
+camera_id = nil --HACK Should be local
 local fb = {}
 
 -- Create stream for buffered input
 -- Here each key press is repeated for 150ms
 -- This is primarily for catching inputs from the past
+
+function love.mousepressed(x, y, button)
+  signal.emit("mousepressed", x, y, button)
+end
+
+function love.keypressed(key)
+  signal.emit("keypressed", key)
+end
+
+function love.keyreleased(key)
+  signal.emit("keyreleased", key)
+end
 
 function love.load()
   camera_id = setdefaults()
@@ -111,18 +124,25 @@ function free_entity(id)
   freeresource(gamedata, id)
 end
 
+local quit_listen = signal.type("keypressed")
+  .filter(function(key) return key == "escape" end)
+  .listen(love.event.quit)
+
 function love.update(dt)
   -- Clean resources for next
-  signal.reset()
+  signal.clear()
+  quit_listen()
   update.system(dt)
   for id, co in pairs(gamedata.ai.control) do
     coroutine.resume(co, id)
   end
   update.movement(gamedata, level)
 --  state_engine.update:onNext(dt)
-  signal.emit("update", dt)
+--  signal.emit("update", dt)
   --entity_engine.sequence_sync:onNext(dt)
   --state_engine.update()
+  combat_engine.update(dt)
+  tscript.update(dt)
   entity_engine.update(dt)
   animation.update()
   collision_engine.update(dt)

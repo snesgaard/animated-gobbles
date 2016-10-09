@@ -103,7 +103,7 @@ function cards.init(init_tab, ...)
     gd.spatial.face[id] = 4
     gd.spatial.flip[id] = 4
 
-    gd.card.cost[id] = 0
+    gd.card.cost[id] = love.math.random(0, 9)
     gd.card.text[id] = "dud"
     gd.card.name[id] = "Recycle"
     if init_tab.ui_init then init_tab.ui_init(gd, id, unpack(_spec_args)) end
@@ -123,9 +123,13 @@ local function card_back_render(_, opt, x, y, width, height)
     gfx.draw(sheet, quad, x, y, 0, sx, sy)
     gfx.setShader()
   end, "replace", 1, false)
-  if opt.state == "hovered" and opt.do_hover_render then
+  local hover_render_state = opt.state == "hovered" or opt.state == "active"
+  --if hover_render_state and opt.do_hover_render then
+  local r, g, b, a = 200, 200, 0, 200
+  if opt.highlight then
+    local r, g, b, a = unpack(opt.highlight)
     gfx.setStencilTest("equal", 0)
-    gfx.setColor(0, 200, 0, 200)
+    gfx.setColor(r, g, b, a)
     gfx.rectangle("fill", x - 5, y - 5, width  + 10, height + 10, 10, 10)
     gfx.setStencilTest()
     gfx.setColor(255, 255, 255)
@@ -161,7 +165,7 @@ end
 
 local Title
 
-function cards.render(id, state_render)
+function cards.render(id, state_render, highlight)
   local x = gamedata.spatial.x[id]
   local y = gamedata.spatial.y[id]
   local w = gamedata.spatial.width[id]
@@ -172,14 +176,16 @@ function cards.render(id, state_render)
   local cost = gamedata.card.cost[id]
 
   --x, y, w, h = card_suit.layout:col(w * sx, h * sy)
-  card_suit:Label(
+  local ui_ids = {}
+  table.insert(ui_ids, card_suit:Label(
     "" .. cost, {color = text_theme, font = icon_font}, x - 1.5 * sx,
     y - 1.5 * sy, 25, 25
-  )
+  ))
   local text = gamedata.card.text[id]
-  card_suit:Label(
-    text, {color = text_theme}, x + 3 * sx, y + 40 * sy, 44 * sx, 25 * sy
-  )
+  table.insert(ui_ids, card_suit:Label(
+    text, {color = text_theme, valign = "top"}, x + 3 * sx, y + 42 * sy,
+    44 * sx, 25 * sy
+  ))
   local name = gamedata.card.name[id]
   local font = name_font.large
   if string.len(name) > 13 then
@@ -187,23 +193,32 @@ function cards.render(id, state_render)
   elseif string.len(name) > 8 then
     font = name_font.medium
   end
-  card_suit:Label(
+  table.insert(ui_ids, card_suit:Label(
     name, {color = text_theme, font = font, valign = "center"},
     x + 7 * sx, y + 1 * sy, 35 * sx, 5 * sy
-  )
+  ))
   card_suit:Button(
     nil, {draw = cost_icon_render}, x - 3 * sx, y - 3 * sy, sx, sy
   )
   card_suit:Button(
     nil, {draw = card_illustration_render}, x + 3 * sx, y + 8 * sy, sx, sy
   )
-  local back_ui = card_suit:Button(
-    id, {draw = card_back_render, do_hover_render = state_render},
+  table.insert(ui_ids, card_suit:Button(
+    id, {
+      draw = card_back_render, do_hover_render = state_render, -- Leave for clarity
+      highlight = highlight
+    },
     x, y, w * sx, h * sy
-  )
-  return back_ui
+  ))
+  local hit = false
+  for _, ui_el in pairs(ui_ids) do
+    hit = hit or ui_el.hit
+  end
+  return hit
 end
 
 function cards.draw()
   card_suit:draw()
 end
+
+require "cards/potato"
