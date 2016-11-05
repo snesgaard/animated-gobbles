@@ -1,25 +1,81 @@
+require "ui"
+require "deck"
+require "combat/visual"
+require "combat/mechanic"
+
 local gfx = love.graphics
 
 combat_engine = {
   script = {}, subroutines = {}, data = {}, events = {}, resource = {}
 }
 
+combat_engine.DEFINE = {
+  FACTION = {PLAYER = "player", ENEMY = "enemy"}
+}
+
 local combat_suit = suit.new()
 local world_suit = suit.new()
 
 combat_engine.resource = {
-  turn_ui_font = gfx.newFont(50)
+  turn_ui_font = gfx.newFont(50),
+  pick_font = gfx.newFont(35),
+  health_font = gfx.newFont(20),
+  theme = {
+    player = {
+      normal = {bg = {255, 255, 255}, fg = {80, 80, 200}}
+    },
+    enemy = {
+      normal = {bg = {255, 255, 255}, fg = {200, 20, 50}}
+    },
+    health = {
+      high = {0, 255, 0}, medium = {255, 255, 0}, low = {255, 0, 0}
+    }
+  },
+  lambda_token = {
+    entity_marker = {}, event_queue = {}
+  },
+  shader = {},
+  mesh = {},
+  suit = {world = world_suit}
 }
 
 combat_engine.data = {
   party = {},
   enemy = {},
+  faction = {},
   turn_order = {},
   current_turn = 1,
   action_point = 4,
   decks = {},
   script = {},
+  event_queue = {}
 }
+
+combat_engine.ui = {
+  health = {}, draw = {}, discard = {}
+}
+
+function loader.combat_engine()
+  combat_engine.resource.shader.entity_marker = loadshader(
+    "resource/shader/entity_marker.glsl"
+  )
+  local vert = {
+    {1, 0, 1, 0},
+    {0, 0, 0, 0},
+    {0, 1, 0, 1},
+    {1, 1, 1, 1},
+  }
+  combat_engine.resource.mesh.quad = gfx.newMesh(vert, "fan")
+end
+
+local function _get_uid(tab, id)
+  local _uid = tab[id]
+  if not _uid then
+    _uid = {}
+    tab[id] = _uid
+  end
+  return _uid
+end
 
 combat_engine.subroutines = {
   hand, -- Event handling and ui render of current hand
@@ -30,17 +86,17 @@ combat_engine.subroutines = {
 
 combat_engine.events = {
   card = {
-    clicked = {}, request_play = {}, play = {}, discard = {}
+    clicked = {}, request_play = {}, play = {}, discard = {}, draw = {}
   },
   target = {
     multi = {
-      allies = {}, enemies = {}, any = {}
+      player = {}, enemy = {}, any = {}
     },
     single = {
-      allies = {}, enemies = {}, any = {}, personal = {}
+      player = {}, enemy = {}, any = {},
     },
     random = {
-      allies = {}, enemies = {}, any = {},
+      player = {}, enemy = {}, any = {},
     }
   },
   confirm = {}
@@ -58,16 +114,249 @@ local DEFINE = {
   }
 }
 
+function combat_engine.add_event(f)
+  table.insert(combat_engine.data.event_queue, f)
+end
+
+function combat_engine.handle_event_queue()
+  local queue = combat_engine.data.event_queue
+  if #queue <= 0 then
+    return combat_engine.handle_event_queue(coroutine.yield())
+  end
+  local f = queue[1]
+  for i = 1, #queue do queue[i] = queue[i + 1] end
+  local sub_token = {}
+  lambda.run(sub_token, f)
+  while lambda.status(sub_token) do coroutine.yield() end
+
+  return combat_engine.handle_event_queue()
+end
+
+function combat_engine.entity_marker(id)
+  if not id then
+    lambda.stop(combat_engine.subroutines.entity_marker)
+    return
+  end
+  local shader = combat_engine.resource.shader.entity_marker
+  local quad = combat_engine.resource.mesh.quad
+  local function _run(dt, id)
+    local x, y = gamedata.spatial.x[id], gamedata.spatial.y[id]
+    --local w, h = gamedata.spatial.width[id], gamedata.spatial.height[id]
+
+    --local ix, iy = camera.transform(camera_id, level, x - w, y - h)
+    --local ex, ey = camera.transform(camera_id, level, x + w, y + h)
+    local ux = camera.transform(camera_id, level, x, y)
+    local theme = combat_engine.resource.theme.player.normal.bg
+    local r, g, b = unpack(theme)
+    local uw, uh = 200, 30
+    local uy = 690
+    world_suit:Button(
+      id, {draw = function(_, opt, x, y, w, h)
+        gfx.setShader(shader)
+        gfx.setColor(r, g, b, 255)
+        gfx.draw(quad, x, y, 0, w, h)
+        gfx.setShader()
+      end}, ux - 0.5 * uw, uy, uw, uh
+    )
+    return _run(coroutine.yield())
+  end
+  lambda.run(combat_engine.resource.lambda_token.entity_marker, _run, id)
+end
+
+function _show_card_pile(dt, pile, parent_uid, x, y, opt)
+  local count = #pile
+  local width = 100
+  local height = 20
+  local xmargin = 5
+  local ymargin = 0
+
+  local block_height = (count) * height + math.max(0, (ymargin ) * (count + 1))
+
+  opt = opt or {}
+  local align = opt.align or "left"
+  local fx
+  if align == "left" then
+    fx = x
+  elseif align == "center" then
+    fx = x - width * 0.5
+  elseif align == "right" then
+    fx = x - width
+  else
+    error("Unknown alignment provided " .. align)
+  end
+  local fy
+  local valign = opt.valign or "middle"
+  if valign == "top" then
+    fy = y
+  elseif valign == "middle" then
+    fy = y - block_height / 2
+  elseif valign == "bottom" then
+    fy = y - block_height
+  else
+    error("Unkown vertical alignment provided " .. valign)
+  end
+  world_suit.layout:reset(fx, fy, 2, 2)
+  local bg_state = world_suit:Button(
+    parent_uid, world_suit.layout:row(width + xmargin * 2, block_height)
+  )
+  world_suit.layout:reset(fx + xmargin, fy + ymargin, xmargin, ymargin)
+  local _ui_states = {}
+  for _, cid in pairs(pile) do
+    local name = gamedata.card.name[cid]
+    local function _draw(text, opt, ...)
+      suit.theme.Button(opt.name, opt, ...)
+    end
+    _ui_states[cid] = world_suit:Button(
+      cid, {draw = _draw, name = name}, world_suit.layout:row(width, height)
+    )
+  end
+
+  for cid, state in pairs(_ui_states) do
+    if state.hovered then
+      gamedata.spatial.x[cid] = fx + width + xmargin
+      gamedata.spatial.y[cid] = fy + block_height * 0.25
+      cards.render(cid, false)
+      break
+    end
+  end
+
+  if not bg_state.hovered then return end
+  return _show_card_pile(coroutine.yield())
+end
+
+function combat_engine.update_health_ui(id, health, damage)
+  health = health or gamedata.combat.health[id]
+  damage = damage or (gamedata.combat.damage[id] or 0)
+
+  local uid = combat_engine.ui.health[id]
+  if not uid then
+    uid = {}
+    combat_engine.ui.health[id] = uid
+  end
+  local pick_theme = {
+    [combat_engine.DEFINE.FACTION.PLAYER] = combat_engine.resource.theme.player,
+    [combat_engine.DEFINE.FACTION.ENEMY] = combat_engine.resource.theme.enemy,
+  }
+  local theme = pick_theme[combat_engine.faction(id)]
+  if not theme then error("Faction not defined for id = " .. id) end
+  --local health = gamedata.combat.health[id]
+  --local damage = gamedata.combat.damage[id] or 0
+  local function _draw(dt, id, uid)
+    local x = gamedata.spatial.x[id]
+    local y = gamedata.spatial.y[id]
+    local h = gamedata.spatial.height[id]
+    local sc_x, _ = camera.transform(camera_id, level, x, y + h)
+    local sc_y = 300
+    local sc_w = 150
+    local sc_h = 23
+    local font = combat_engine.resource.health_font
+    --local theme =  combat_engine.resource.theme.player or combat_engine.resource.theme.enemy
+    local margin = 5
+    world_suit.layout:reset(sc_x - sc_w * 0.5, sc_y, margin, margin)
+    local function _text_box_draw(_, opt, x, y, w, h)
+      local theme = opt.color.normal
+      gfx.setColor(unpack(theme.fg))
+      gfx.setLineWidth(5)
+      local mx = 10
+      local my = 2
+      gfx.rectangle("fill", x - mx, y - my, w + 2 * mx, h + 2 * my, 15)
+      gfx.setColor(unpack(theme.bg))
+      gfx.rectangle("fill", x, y, w, h, 25)
+    end
+    world_suit:Button(
+      uid, {draw = _text_box_draw, color =  theme}, world_suit.layout:row(sc_w, sc_h)
+    )
+    local function _bar_draw(_, opt, x, y, w, h)
+      gfx.stencil(function()
+        gfx.rectangle("fill", x + 2, y + 2, w - 4, h - 4, 5)
+      end, "replace", 1)
+      gfx.setStencilTest("equal", 0)
+      gfx.setColor(unpack(opt.color.normal.fg))
+      gfx.rectangle("fill", x, y, w, h)
+      gfx.setStencilTest("equal", 1)
+      local hp = opt.health
+      local dmg = opt.damage
+      local r = (hp - dmg) / hp
+      local hp_theme = opt.hp_color
+      if r > 0.5 then
+        gfx.setColor(unpack(hp_theme.high))
+      elseif r > 0.25 then
+        gfx.setColor(unpack(hp_theme.medium))
+      else
+        gfx.setColor(unpack(hp_theme.low))
+      end
+      gfx.rectangle("fill", x, y, w * r, h)
+      gfx.setStencilTest()
+    end
+    local hp_theme = combat_engine.resource.theme.health
+    world_suit:Button(
+      uid, {draw = _bar_draw, hp_color = hp_theme, health = health, damage = damage, color = theme},
+      world_suit.layout:row(sc_w, sc_h * 0.5)
+    )
+    world_suit.layout:push(world_suit.layout:row())
+    local ui_deck_w = 65
+    local ui_deck_aspect = 1.4
+    local deck_margin = sc_w - 2 * ui_deck_w
+    world_suit.layout:padding(deck_margin, deck_margin)
+    local _discard_uid = _get_uid(combat_engine.ui.discard, id)
+    local _discard_state = world_suit:Button(
+      _discard_uid,
+       world_suit.layout:col(ui_deck_w, ui_deck_w * ui_deck_aspect)
+    )
+    local _draw_uid = _get_uid(combat_engine.ui.draw, id)
+    local _draw_state = world_suit:Button(
+      _draw_uid, world_suit.layout:col(ui_deck_w, ui_deck_w * ui_deck_aspect)
+    )
+    world_suit.layout:pop()
+    if _draw_state.entered and not lambda.status(_draw_uid) and deck.size(id, gamedata.deck.draw) > 0 then
+      local x, y = world_suit.layout:col()
+      local pile = gamedata.deck.draw[id]
+      lambda.run(
+        _draw_uid, _show_card_pile, pile, _draw_uid, x - deck_margin,
+        y + ui_deck_aspect * ui_deck_w * 0.5
+      )
+    end
+    if _discard_state.entered and not lambda.status(_discard_uid) and deck.size(id, gamedata.deck.discard) > 0 then
+      local x, y = world_suit.layout:col()
+      local pile = gamedata.deck.discard[id]
+      lambda.run(
+        _discard_uid, _show_card_pile, pile, _discard_uid, sc_x - sc_w * 0.5,
+        y + ui_deck_aspect * ui_deck_w * 0.5, {align = "right"}
+      )
+    end
+    --world_suit.layout:push(world_suit.layout:row())
+    --world_suit.layout:pop()
+    local hh = (sc_w - 30) * 0.5
+    world_suit.layout:reset(sc_x - sc_w * 0.5, sc_y, 5, 5)
+    world_suit:Label(
+      "" .. (health - damage), {align = "right", font = font, color = theme},
+      world_suit.layout:col(hh, sc_h)
+    )
+    world_suit:Label(
+      "/", {font = font, color = theme}, world_suit.layout:col(20, sc_h)
+    )
+    world_suit:Label(
+      "" .. health, {align = "left", font = font, color = theme},
+      world_suit.layout:col(hh, sc_h)
+    )
+
+    return _draw(coroutine.yield())
+  end
+  lambda.run(uid, _draw, id, uid)
+end
+
 local function _draw_target_border(id, opt, x, y, w, h)
   gfx.stencil(function()
     gfx.rectangle("fill", x, y, w, h)
   end, "replace", 1)
   gfx.setStencilTest("equal", 0)
   gfx.setLineWidth(6)
+  gfx.setColor(255, 255, 255)
   gfx.polygon("line", x, y, x + w * 0.1, y, x, y + h * 0.1)
   gfx.polygon("line", x + w, y + h, x + w * 0.9, y + h, x + w, y + h * 0.9)
   gfx.polygon("line", x, y + h, x + w * 0.1, y + h, x, y + h * 0.9)
   gfx.polygon("line", x + w, y, x + w * 0.9, y, x + w, y + h * 0.1)
+  gfx.setStencilTest()
 end
 
 function combat_engine.pick_single_target()
@@ -86,9 +375,19 @@ function combat_engine.pick_single_target()
     return _finisher(_hit_id)
   end
   while true do
-    --world_suit.layout:reset(0, 0)
+    world_suit.layout:reset(800, 25)
+    world_suit:Label(
+      "Select Target",
+      {
+        draw = ui.draw_text_box,
+        font = combat_engine.resource.pick_font,
+        color = combat_engine.resource.theme.player
+      },
+      world_suit.layout:row(300, 50)
+    )
     local pui = map(_draw, combat_engine.data.party)
     local eui = map(_draw, combat_engine.data.enemy)
+
 
     for i, ui in pairs(pui) do
       if ui.hit then return _finisher(combat_engine.data.party[i]) end
@@ -100,7 +399,59 @@ function combat_engine.pick_single_target()
   end
 end
 
-function combat_engine.set_selected_card(id, i, card_id)
+function combat_engine.confirm_cast(id, pile, index)
+  local registered = {}
+  local token = signal.type(combat_engine.events.card.clicked)
+    .filter(function(_id, _pile, _index)
+      return id == _id and pile == _pile and index == _index
+    end)
+    .map(function(v) return registered, v end)
+    .listen(table.insert)
+  while true do
+    world_suit.layout:reset(800, 25)
+    world_suit:Label(
+      "Press to Confirm",
+      {
+        draw = ui.draw_text_box,
+        font = combat_engine.resource.pick_font,
+        color = combat_engine.resource.theme.player
+      },
+      world_suit.layout:row(300, 50)
+    )
+    coroutine.yield(registered[1])
+    token()
+  end
+end
+
+function combat_engine.entity_mouse()
+  local function _draw(id)
+    local x, y = gamedata.spatial.x[id], gamedata.spatial.y[id]
+    local w, h = gamedata.spatial.width[id], gamedata.spatial.height[id]
+
+    local ix, iy = camera.transform(camera_id, level, x - w, y - h)
+    local ex, ey = camera.transform(camera_id, level, x + w, y + h)
+    return world_suit:Button(
+      id, {draw = function() end} , ix, ey, ex - ix, iy - ey
+    )
+  end
+
+  local pui = map(_draw, combat_engine.data.party)
+  local eui = map(_draw, combat_engine.data.enemy)
+
+  for i, ui in pairs(pui) do
+    if ui.hit then
+      signal.emit(combat_engine.events.target.single, combat_engine.data.party[i])
+    end
+  end
+  for i, ui in pairs(eui) do
+    if ui.hit then
+      signal.emit(combat_engine.events.target.single, combat_engine.data.enemy[i])
+    end
+  end
+  return combat_engine.entity_mouse(coroutine.yield())
+end
+
+function combat_engine.set_selected_card(id, card_id)
   combat_engine.subroutines.hand = subroutines_creator.show_hand{
     id, true,
     highlight = function(id)
@@ -138,7 +489,7 @@ local function _show_hand(
   id, do_hover, highlights -- Control arguments
 )
   highlights = highlights or {}
-  local hand = combat_engine.data.decks[id].hand
+  local hand = gamedata.deck.hand[id]
   for i, card_id in pairs(hand) do
     gamedata.spatial.x[card_id] = 40 + (#hand + 1 - i  - 1) * 180
     gamedata.spatial.y[card_id] = 750
@@ -151,7 +502,7 @@ local function _show_hand(
     local hit = cards.render(card_id, _do_hover, h)
     -- _do_hover = _do_hover and not card_ui.hovered
     if hit then
-      signal.emit(combat_engine.events.card.clicked, i, card_id)
+      signal.emit(combat_engine.events.card.clicked, id, gamedata.deck.hand, i)
     end
   end
   coroutine.yield()
@@ -163,7 +514,7 @@ function subroutines_creator.show_hand(args)
   local hover = args.hover or true
   local selected = args.selected
   local light_fun = args.highlight or function() end
-  local highlight = map(light_fun, combat_engine.data.decks[id].hand)
+  local highlight = map(light_fun, gamedata.deck.hand[id])
 
   return coroutine.create(function(dt)
     return _show_hand(id, hover, highlight)
@@ -300,27 +651,44 @@ function subroutines_creator.player_turn(id)
   return coroutine.create(function() _player_turn(id) end)
 end
 
+function combat_engine.faction(id)
+  local f = combat_engine.data.faction[id]
+  if f then return f() end
+end
+
 function combat_engine.begin(allies, enemies)
   -- Initialize card pool
   local all_ids = {}
-  for _, id in pairs(allies) do table.insert(all_ids, id) end
-  for _, id in pairs(enemies) do table.insert(all_ids, id) end
+  for _, id in pairs(allies) do
+    combat_engine.data.faction[id] = function()
+      return combat_engine.DEFINE.FACTION.PLAYER
+    end
+    table.insert(all_ids, id)
+  end
+  for _, id in pairs(enemies) do
+    combat_engine.data.faction[id] = function()
+      return combat_engine.DEFINE.FACTION.ENEMY
+    end
+    table.insert(all_ids, id)
+  end
 
   for _, id in pairs(all_ids) do
-    combat_engine.data.decks[id] = deck.create()
+    deck.create(id)
     local collection = gamedata.combat.collection[id] or {}
-    combat_engine.data.decks[id].draw = map(function()
-      return cards.init{ui_init = cards.potato}
+    gamedata.deck.draw[id] = map(function(c)
+      return cards.init{ui_init = c}
     end,
       collection
     )
-    deck.shuffle(combat_engine.data.decks[id], "draw")
+    deck.shuffle(id, gamedata.deck.draw)
     combat_engine.data.script[id] = combat_engine.player_script
-    local draw_size = deck.size(combat_engine.data.decks[id], "draw")
+    local draw_size = deck.size(id, gamedata.deck.draw)
     for i = 1, math.min(draw_size, 10) do
-      local card_id = deck.draw(combat_engine.data.decks[id], "draw")
-      deck.insert(combat_engine.data.decks[id], "hand", card_id)
+      local card_id = deck.draw(id, gamedata.deck.draw)
+      deck.insert(id, gamedata.deck.hand, card_id)
     end
+    -- Init ui
+    combat_engine.update_health_ui(id)
   end
   combat_engine.data.turn_order = all_ids
   combat_engine.data.current_turn = 0
@@ -339,6 +707,7 @@ function combat_engine.begin(allies, enemies)
       return combat_engine.script.player(all_ids[1])
     end
   )
+  combat_engine.subroutines.entity_mouse = coroutine.create(combat_engine.entity_mouse)
 
   combat_engine.data.party = allies
   combat_engine.data.enemy = enemies
@@ -347,21 +716,38 @@ function combat_engine.begin(allies, enemies)
   draw_engine.ui.world.combat = function()
 --    world_suit:draw()
   end
+
+  lambda.run(
+    combat_engine.resource.lambda_token.event_queue,
+    combat_engine.handle_event_queue
+  )
 end
 
 local _event_handlers = {
   signal.type(combat_engine.events.card.play)
-  --.map(function())
+    .filter(function(id, pile, index) return pile == gamedata.deck.hand end)
+    .map(function(id, pile, index)
+      local cardid = deck.peek(id, pile, index)
+      return gamedata.card.cost[cardid]
+    end)
+    .listen(function(cost)
+      local a = combat_engine.data.action_point
+      combat_engine.data.action_point = math.max(0, a - cost)
+    end),
+  signal.type(combat_engine.events.card.play)
+    .filter(function(id, pile, index) return pile == gamedata.deck.hand end)
+    .map(function(id, pile, index)
+      return id, gamedata.deck.discard, deck.draw(id, pile, index)
+    end)
+    .listen(deck.insert),
 }
 
-function combat_engine.handle_events()
-
-end
-
 function combat_engine.update(dt)
+  --Setup event handlers
+  for _, f in pairs(_event_handlers) do f() end
   -- Update card effects
   for _, id in pairs(combat_engine.data.party) do
-    local hand = combat_engine.data.decks[id].hand
+    local hand = gamedata.deck.hand[id]
     for _, cardid in pairs(hand) do
       local effects = gamedata.card.effects[cardid]
       for _, e in pairs(effects) do e() end

@@ -35,6 +35,33 @@ local function _map(M)
   end
 end
 
+local function _sequence()
+  return function(next)
+    return function(t)
+      local res = {}
+      for key, val in pairs(t) do res[key] = {next(val)} end
+      for key, val in pairs(res) do
+        if #val == 1 then res[key] = val[1] end
+      end
+      return res
+    end
+  end
+end
+
+local function _flatten()
+  return function(next)
+    return function(t)
+      local res = {}
+      for _, subtab in pairs(t) do
+        for _, val in pairs(subtab) do
+          table.insert(res, val)
+        end
+      end
+      return next(res)
+    end
+  end
+end
+
 local function _future(f)
   return function(next)
     return function(...)
@@ -48,7 +75,7 @@ local function _future(f)
         if #arg > 0 then return next(unpack(arg)) end
         return _future_run(coroutine.yield())
       end
-      tscript.run(_future_run)
+      lambda.run(_future_run)
     end
   end
 end
@@ -187,8 +214,59 @@ function signal.merge(...)
       end
     end, parents)
     return function()
-      for _, t in pairs(tokens) do
-        print(t)
+      for _, t in pairs(tokens) do t() end
+    end
+  end)
+  return _branch(builders)
+end
+
+function signal.zip(...)
+  local builders = {}
+  local parents = {...}
+  local values = {}
+  for i, _ in ipairs(parents) do values[i] = {} end
+  local function do_emit()
+    for i, v in ipairs(values) do
+      if #v == 0 then return false end
+    end
+    return true
+  end
+  local function create_branch(i, next)
+    return function(...)
+      table.insert(values[i], {...})
+      --TODO INVOKE NEXT IF ALL OF VALUE IS FILLED
+      while do_emit() do
+        local res = {}
+        for i, val in ipairs(values) do
+          for _, v in ipairs(val[1]) do
+            table.insert(res, v)
+          end
+          for i, v in pairs(val) do
+            val[i] = val[i + 1]
+          end
+        end
+        next(unpack(res))
+      end
+    end
+  end
+  table.insert(builders, function(next)
+    print("build?")
+    local tokens = {}
+    for i, p in ipairs(parents) do
+      local br = create_branch(i, next)
+      local t = type(p)
+      if t == "table" and p._magic_number == _MAGIC_NUMBER then
+        tokens[i] = p.listen(br)
+      elseif t == "table" or t == "number" or t == "string" then
+        tokens[i] = signal.type(p).listen(br)
+      else
+        error("Unsupported type:", t)
+      end
+    end
+    return function()
+      print("bin!")
+      for i, t in pairs(tokens) do
+        print("token", i)
         t()
       end
     end

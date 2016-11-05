@@ -48,7 +48,9 @@ function init.engineer(gd, id, x, y)
   gd.spatial.vy[id] = 0
   gd.spatial.face[id] = 1
 
-  gd.combat.health[id] = 10
+  gd.combat.health[id] = 20
+
+  gd.combat.damage[id] = 5
   gd.functional.portrait[id] = function() return "engineer" end
   animation.play{id, atlas, anime.combat_idle, 0.75}
 end

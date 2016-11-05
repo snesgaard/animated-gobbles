@@ -148,7 +148,7 @@ function cards.batch_render(card_ids, x, y)
 end
 
 local function card_illustration_render(_, opt, x, y, width, height)
-  local quad = get_quad("potato")
+  local quad = get_quad(opt.pid)
   local sx = width
   local sy = height
   gfx.setStencilTest("equal", 0)
@@ -200,8 +200,10 @@ function cards.render(id, state_render, highlight)
   card_suit:Button(
     nil, {draw = cost_icon_render}, x - 3 * sx, y - 3 * sy, sx, sy
   )
+  local pid = gamedata.card.image[id] or "potato"
   card_suit:Button(
-    nil, {draw = card_illustration_render}, x + 3 * sx, y + 8 * sy, sx, sy
+    nil, {draw = card_illustration_render, pid = pid}, x + 3 * sx,
+    y + 8 * sy, sx, sy
   )
   table.insert(ui_ids, card_suit:Button(
     id, {
@@ -222,3 +224,4 @@ function cards.draw()
 end
 
 require "cards/potato"
+require "cards/evil_potato"

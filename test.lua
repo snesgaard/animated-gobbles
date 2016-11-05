@@ -17,7 +17,7 @@ require "entity_engine"
 require "debug_console"
 require "combat/combat_engine"
 require "script_engine"
-require "temporal_script"
+require "lambda_process"
 
 require "actor/sfx"
 require "actor/engineer"
@@ -62,6 +62,7 @@ function love.load()
   renderbox.do_it = false
   -- Load entity
   loader.draw_engine()
+  loader.combat_engine()
   loader.shared()
   loader.sfx()
   loader.prop()
@@ -97,12 +98,33 @@ function love.load()
   table.insert(ally, initresource(gamedata, init.engineer, 145, -133.5))
   local id = ally[1]
   local card_collection = {}
-  for i = 1, 15 do table.insert(card_collection, 1) end
-  for i = 1, 15 do table.insert(card_collection, 1) end
+  for i = 1, 29 do table.insert(card_collection, cards.potato) end
+  for i = 1, 1 do table.insert(card_collection, cards.evil_potato) end
   gamedata.combat.collection[id] = card_collection
   table.insert(ally, initresource(gamedata, init.witch, 95, -133.5))
+  id = ally[2]
+  local card_collection = {}
+  for i = 1, 1 do table.insert(card_collection, cards.potato) end
+  for i = 1, 29 do table.insert(card_collection, cards.evil_potato) end
+  gamedata.combat.collection[id] = card_collection
   table.insert(enemy, initresource(gamedata, init.testbox, 260, -145))
   combat_engine.begin(ally, enemy)
+
+  local token1 = {}
+  local token2 = {}
+
+  local sig = signal.zip(
+      signal.type(token1).map(function() return "hello" end),
+      signal.type(token2).map(function() return "world" end)
+  ).listen(print)
+
+  sig()
+  signal.emit(token1)
+  signal.emit(token1)
+  signal.emit(token1)
+  signal.emit(token2)
+  signal.emit(token2)
+  signal.emit(token2)
 end
 
 map_geometry = {}
@@ -142,7 +164,7 @@ function love.update(dt)
   --entity_engine.sequence_sync:onNext(dt)
   --state_engine.update()
   combat_engine.update(dt)
-  tscript.update(dt)
+  lambda.update(dt)
   entity_engine.update(dt)
   animation.update()
   collision_engine.update(dt)

@@ -36,7 +36,8 @@ function coroutine.resume(...)
 	local result = {_coroutine_resume(...)}
   local state = result[1]
 	if not state then
-		error( tostring(result[2]), 2 )	-- Output error message
+		--error( tostring(result[2]), 2 )	-- Output error message
+    print( "error:" .. tostring(result[2]))	-- Output error message
 	end
 
 	return unpack(result)

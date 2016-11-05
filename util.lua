@@ -9,7 +9,7 @@ function map(f, t)
   return r
 end
 
-function duplicate(val, n)
+function util.duplicate(val, n)
   local t = {}
   for i = 1, n do
     t[i] = val
@@ -82,6 +82,10 @@ function util.time(t)
     t = t - dt
     return t > 0
   end
+end
+
+function math.dot(x1, y1, x2, y2)
+  return x1 * x2 + y1 * y2
 end
 
 function print_table(t)

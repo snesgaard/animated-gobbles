@@ -8,10 +8,10 @@ function createresource(resource)
   return resource
 end
 function allocresource(resource)
-  local available_id = available_id[resource]
-  local id = available_id[#available_id]
+  local sub_available_id = available_id[resource]
+  local id = sub_available_id[#sub_available_id]
   if id then
-    available_id[#available_id] = nil
+    sub_available_id[#sub_available_id] = nil
     return id
   end
   local s = seed[resource]
@@ -19,6 +19,7 @@ function allocresource(resource)
   return s
 end
 function freeresource(resource, id)
+  if type(id) ~= "number" then error("Unsupported id type:", id) end
   table.insert(available_id[resource], id)
   local function _erase(t, id)
     t[id] = nil

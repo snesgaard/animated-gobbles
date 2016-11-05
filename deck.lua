@@ -1,102 +1,110 @@
 local rng = love.math.random
 
+gamedata.deck = {
+  draw = {},
+  hand = {},
+  discard = {},
+  burn = {},
+}
+
 deck = {}
 
-function deck.create()
-  local _deck =  {
-    draw = {},
-    hand = {},
-    discard = {},
-    burn = {},
-  }
-  return _deck
+function deck.clear()
 end
 
-function deck.remove(_deck, _pile, _card)
-  local _pool = _deck[_pile]
+function deck.create(id)
+  for key, pile in pairs(gamedata.deck) do
+    print(key, pile)
+    pile[id] = {}
+  end
+end
+
+function deck.remove(id, pile, index)
+  local _pool = pile[id]
   if not _pool then
-    error(_pile .. " was not found in deck")
+    error(string.format("%i was not found in deck:", index))
   end
-  if _card < 1 or _card > #_pool then
-    error(_card .. " exceeds pile " .. _pile .. " with size " .. #_pool)
+  if index < 1 or index > #_pool then
+    error(index .. " exceeds pile " .. pile .. " with size " .. #_pool)
   end
-  for i = _card + 1, #_pool do
+  for i = index + 1, #_pool do
     _pool[i - 1] = _pool[i]
   end
   _pool[#_pool] = nil
 end
 
-function deck.peek(_deck, _pile, _card)
-  local _pool = _deck[_pile]
+function deck.peek(id, pile, index)
+  local _pool = pile[id]
   if not _pool then
-    error(_pile .. " was not found in deck")
+    error(pile .. " was not found in deck")
   end
-  if _card < 1 or _card > #_pool then
-    error(_card .. " exceeds pile <" .. _pile .. "> with size " .. #_pool)
+  if index < 1 or index > #_pool then
+    error(index .. " exceeds pile with size " .. #_pool)
   end
-  return _pool[_card]
+  return _pool[index]
 end
 
-function deck.draw(_deck, _pile, _card)
-  _card = _card or 1
-  local id = deck.peek(_deck, _pile, _card)
-  deck.remove(_deck, _pile, _card)
-  return id
+function deck.draw(id, pile, index)
+  index = index or 1
+  local card_id = deck.peek(id, pile, index)
+  deck.remove(id, pile, index)
+  return card_id
 end
 
-function deck.insert(_deck, _pile, _id, _index)
-  local _pool = _deck[_pile]
+function deck.insert(id, pile, card_id, index)
+  local _pool = pile[id]
   if not _pool then
-    error(_pile .. " was not found in deck")
+    error(pile .. " was not found in deck")
   end
-  _index = _index or #_pool + 1
-  if _index < 1 or _index > #_pool + 1 then
+  index = index or #_pool + 1
+  if index < 1 or index > #_pool + 1 then
     error(
-      _card .. " cannot be placed in pile " .. _pile .. " with size " .. #_pool
+      index .. " cannot be placed in pile " .. pile .. " with size " .. #_pool
     )
   end
-  local _move = type(_id) == "table" and #_id or 1
-  for i = #_pool, _index, -1 do
-    _pool[i] = _pool[i + _move]
+  local _move = type(card_id) == "table" and #card_id or 1
+  for i = #_pool, index, -1 do
+    _pool[i + _move] = _pool[i]
   end
-  if type(_id) == "table" then
-    for i, id in pairs(_id) do
-      _pool[_index + i - 1] = id
+  if type(card_id) == "table" then
+    for i, id in pairs(card_id) do
+      _pool[index + i - 1] = id
     end
   else
-    _pool[_index] = _id
+    _pool[index] = card_id
   end
+  return index
 end
 
-function deck.shuffle(_deck, _pile)
-  local _pool = _deck[_pile]
+function deck.shuffle(id, pile)
+  local _pool = pile[id]
   if not _pool then
-    error(_pile .. " was not found in deck")
+    error(pile .. " was not found in deck")
   end
   local _order = {}
-  for _, id in pairs(_pool) do
-    _order[id] = rng()
+  for _, cid in pairs(_pool) do
+    _order[cid] = rng()
   end
   table.sort(_pool, function(a, b) return _order[a] < _order[b] end)
 end
 
-function deck.size(_deck, _pile)
-  local _pool = _deck[_pile]
+function deck.size(id, pile)
+  local _pool = pile[id]
   if not _pool then
-    error(_pile .. " was not found in deck")
+    error(pile .. " was not found in deck")
   end
   return #_pool
 end
 
-function deck.swap(_deck, _pile_a, _pile_b)
-  local _pool_a = _deck[_pile_a]
+function deck.swap(id, pile_a, pile_b)
+  local _pool_a = pile_a[id]
   if not _pool_a then
-    error(_pile_a .. " was not found in deck")
+    error(pile_a .. " was not found in deck")
   end
-  local _pool_b = _deck[_pile_b]
+  local _pool_b = pile_b[id]
   if not _pool_b then
-    error(_pile_b .. " was not found in deck")
+    error(pile_b .. " was not found in deck")
   end
-  _deck[_pile_a] = _pool_b
-  _deck[_pile_b] = _pool_a
+  _deck[pile_a] = _pool_b
+  _deck[pile_b] = _pool_a
 end
