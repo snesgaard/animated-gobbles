@@ -33,6 +33,19 @@ require "cards/general"
 gfx = love.graphics
 
 camera_id = nil --HACK Should be local
+world_suit = suit.new()
+
+function world_suit:draw()
+	self:exitFrame()
+	--love.graphics.push('all')
+	for i = 1,self.draw_queue.n do
+		self.draw_queue[i]()
+	end
+	--love.graphics.pop()
+	self.draw_queue.n = 0
+	self:enterFrame()
+end
+
 local fb = {}
 
 -- Create stream for buffered input
@@ -54,10 +67,6 @@ end
 function love.load()
   camera_id = setdefaults()
   level = sti.new("resource/test4.lua")
-  print("transform", camera.inv_transform(camera_id, level, 0, 0))
-  print("transform", camera.inv_transform(camera_id, level, 1920, 0))
-  print("transform", camera.inv_transform(camera_id, level, 1920, 1080))
-  print("transform", camera.inv_transform(camera_id, level, 0, 1080))
   --love.event.quit()
   renderbox.do_it = false
   -- Load entity
@@ -89,7 +98,6 @@ function love.load()
       local args = {type_parse(obj)}
       local id = initresource(gamedata, type_init, unpack(args))
       ent_table[obj.name] = id
-      print("entity", obj.name, id)
     end
   end
 
@@ -109,22 +117,6 @@ function love.load()
   gamedata.combat.collection[id] = card_collection
   table.insert(enemy, initresource(gamedata, init.testbox, 260, -145))
   combat_engine.begin(ally, enemy)
-
-  local token1 = {}
-  local token2 = {}
-
-  local sig = signal.zip(
-      signal.type(token1).map(function() return "hello" end),
-      signal.type(token2).map(function() return "world" end)
-  ).listen(print)
-
-  sig()
-  signal.emit(token1)
-  signal.emit(token1)
-  signal.emit(token1)
-  signal.emit(token2)
-  signal.emit(token2)
-  signal.emit(token2)
 end
 
 map_geometry = {}
@@ -255,7 +247,9 @@ function love.draw()
     --goobles_drawing_stuff.occlusion(true)
     --draw_engine.foreground_occlusion:onNext(true)
     --signal.emit(draw_engine.signal.foreground_occlusion, true)
-    for _, f in pairs(draw_engine.foreground) do f.occlusion(true) end
+    for key, f in pairs(draw_engine.foreground) do
+      f.occlusion(true)
+    end
   end
 
   for id, _ in pairs(gamedata.tag.point_light) do
@@ -265,6 +259,7 @@ function love.draw()
   draw_engine.glow(glowmap)
   if not debug.buffer_view then
     draw_engine.final_render(scenemap, glowmap)
+
 
 
     gfx.setBlendMode("screen")

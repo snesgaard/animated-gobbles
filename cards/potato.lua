@@ -1,26 +1,28 @@
+local data = {
+  cost = 1,
+  name = "Potato",
+  image = "potato",
+  play = {
+    single = {damage = 3},
+    personal = {card = 1},
+    visual = {
+      type = "projectile",
+      projectile = {
+        sprite = "potato",
+        speed = 500
+      },
+      on_hit = {
+        sprite = "potato",
+        behavior = "bounce",
+      }
+    }
+  }
+}
 
-local function _play(userid, pile, index)
-  local pick_coroutine = coroutine.create(combat_engine.pick_single_target)
-  return signal.from_value()
-  .map(pick_coroutine)
-  .any()
-  .fork(
-    signal.from_value()
-      .map(function(tid)
-        local dmg = gamedata.combat.damage[tid] or 0
-        dmg = dmg + 1
-        gamedata.combat.damage[tid] = dmg
-        return userid, tid, 1
-      end)
-      .map(combat.visual.melee_attack)
-      .listen(combat_engine.add_event),
-    signal.from_value()
-      .map(function() return userid, pile, index end)
-      .listen(combat_engine.events.card.play),
-    signal.from_value()
-      .map(function() return userid end)
-      .listen(combat.mechanic.draw_card)
-  )
+function data.play.text_compiler(id)
+  local dmg = gamedata.effect.damage[id]
+  local card = gamedata.effect.card[id]
+  return string.format("A character takes %i damage. Draw %i card.", dmg, card)
 end
 
 function cards.potato(gd, id)

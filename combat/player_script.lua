@@ -1,5 +1,26 @@
 local states = {}
 
+local card_data = {
+  cost = 1,
+  name = "Potato",
+  image = "potato",
+  play = {
+    single = {damage = 1},
+    personal = {card = 1},
+    visual = {
+      type = "projectile",
+      projectile = {
+        sprite = "potato",
+        speed = 500
+      },
+      on_hit = {
+        sprite = "potato",
+        behavior = "bounce",
+      }
+    }
+  }
+}
+
 function states.card_picked(id, pile, index)
   local next_state = {}
   local subroutines = {}
@@ -55,8 +76,9 @@ function states.action_pick(id)
     return combat_engine.data.action_point >= gamedata.card.cost[cardid]
   end)
   .map(function(id, pile, index)
-    return next_state, function()
-      return states.card_picked(id, pile, index)
+    return next_state, function ()
+      combat_engine.play_card(id, pile, index)
+      return states.action_pick(id)
     end
   end)
   .listen(table.insert)

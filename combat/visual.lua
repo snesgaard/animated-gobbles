@@ -34,6 +34,23 @@ function combat.visual.move_to(id, x, y, speed, dt)
   spatial.y[id] = y
 end
 
+function combat.visual.move_arch(id, tx, ty, time, gravity, dt)
+  local gy = gravity
+  local ux = gamedata.spatial.x[id]
+  local uy = gamedata.spatial.y[id]
+  local vx = (tx - ux) / time
+  local vy = (ty - uy) / time - time * gy * 0.5
+  local t = 0
+  while t + dt < time do
+    t = t + dt
+    gamedata.spatial.x[id] = vx * t + ux
+    gamedata.spatial.y[id] = gy * t * t * 0.5 + vy * t + uy
+    dt = coroutine.yield()
+  end
+  gamedata.spatial.x[id] = tx
+  gamedata.spatial.y[id] = ty
+end
+
 function combat.visual.health_ui_updater(id)
   local health = gamedata.combat.health[id]
   local damage = gamedata.combat.damage[id]
@@ -41,25 +58,80 @@ function combat.visual.health_ui_updater(id)
 end
 
 function combat.visual.melee_attack(
-  userid, targetid, attack
+  userid, targetid, effect
 )
-  local health = gamedata.combat.health[targetid]
-  local damage = gamedata.combat.damage[targetid] or 0
   return function(dt)
     local ux = gamedata.spatial.x[userid]
     local uy = gamedata.spatial.y[userid]
     local tx = gamedata.spatial.x[targetid]
     local ty = gamedata.spatial.y[targetid]
-    local th = gamedata.spatial.height[targetid]
     -- Update animation to movement
     combat.visual.move_to(userid, tx, uy, 700, dt)
     -- Update animation to hit
     -- Display damage number
     -- Update enemy animation to hurt
-    combat_engine.update_health_ui(targetid, health, damage)
-    combat.visual.damage_number(tx, ty + th, attack)
+    --combat_engine.update_health_ui(targetid, health, damage)
+    --combat.visual.damage_number(tx, ty + th, attack)
+    if effect then effect() end
     -- Update animation to back-movement
     combat.visual.move_to(userid, ux, uy, 500, dt)
+  end
+end
+
+function combat.visual.projectile(
+  userid, targetid, effect, visual_data
+)
+  return function(dt)
+    local ux = gamedata.spatial.x[userid]
+    local uy = gamedata.spatial.y[userid]
+    local uw = gamedata.spatial.width[userid]
+    local uh = gamedata.spatial.height[userid]
+    local tx = gamedata.spatial.x[targetid]
+    local ty = gamedata.spatial.y[targetid]
+    local tw = gamedata.spatial.width[targetid]
+    local th = gamedata.spatial.height[targetid]
+    local pid = allocresource(gamedata)
+    gamedata.spatial.x[pid] = ux + uw
+    gamedata.spatial.y[pid] = uy + uh
+    local pid_draw = "_projectile_draw"
+    local draw_func = function()
+      local x = gamedata.spatial.x[pid]
+      local y = gamedata.spatial.y[pid]
+      gfx.setColor(255, 255, 0)
+      gfx.rectangle("fill", x, -y, 10, 10)
+      gfx.setColor(255, 255, 255)
+    end
+    -- TODO: Play characters throw animation!
+    draw_engine.foreground[pid] = draw_engine.create_primitive(
+      draw_func, true, false, true
+    )
+    local function prehit()
+      local gy = visual_data.projectile.gravity
+      local time = visual_data.projectile.time
+      --combat.visual.move_to(pid, tx, ty, speed, dt)
+      combat.visual.move_arch(pid, tx, ty, time, gy, dt)
+    end
+    prehit()
+    if effect then effect() end
+    -- Define possible posthit behaviours
+    local posthit_funcs = {}
+    function posthit_funcs.bounce(visual_data)
+      local time = visual_data.time
+      local gy = visual_data.gravity
+      -- TODO: Set potential for diffirent PDFs
+      local rng = love.math.random
+      local range = visual_data.range or {0, 0}
+      local dx = rng() * (range[2] - range[1]) + range[1]
+      -- TODO: Replace y coordinate with floor define
+      combat.visual.move_arch(pid, tx + dx, ty - 20, time, gy, dt)
+    end
+    -- Select defined type and execute
+    lambda.run(function()
+      local posthit = posthit_funcs[visual_data.on_hit.type]
+      if posthit then posthit(visual_data.on_hit) end
+      draw_engine.foreground[pid] = nil
+      freeresource(gamedata, pid)
+    end)
   end
 end
 

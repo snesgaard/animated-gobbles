@@ -2,6 +2,7 @@ require "ui"
 require "deck"
 require "combat/visual"
 require "combat/mechanic"
+require "combat/parser"
 
 local gfx = love.graphics
 
@@ -113,6 +114,55 @@ local DEFINE = {
     SELECTED = {0, 0, 100, 200},
   }
 }
+
+function combat_engine.play_card(userid, pile, index)
+  local card_data = {
+    cost = 1,
+    name = "Potato",
+    image = "potato",
+    play = {
+      single = {damage = 2},
+      personal = {card = 1},
+      visual = {
+        type = "projectile",
+        projectile = {
+          sprite = "potato",
+          gravity = -1000,
+          time = 0.65,
+        },
+        on_hit = {
+          type = "bounce",
+          sprite = "potato",
+          gravity = -1000,
+          time = 0.65,
+          distribution = "uniform",
+          range = {-50, 50},
+        }
+      }
+    }
+  }
+  local sig = {}
+  local play = coroutine.wrap(function()
+    combat.parse_card_play(userid, pile, index, card_data)
+  end)
+  local abort = signal.merge(
+    signal.type("mousepressed")
+      .filter(function(x, y, b) return b == 2 end),
+    signal.type("keypressed")
+      .filter(function(key) return key == "escape" end),
+    signal.type(combat_engine.events.card.play)
+      .filter(function(_userid, _pile, _index)
+        return userid == _userid and pile == _pile and index == _index
+      end)
+  ).listen(function() table.insert(sig, 1) end)
+
+  while true do
+    play()
+    abort()
+    coroutine.yield()
+    if sig[1] then return end
+  end
+end
 
 function combat_engine.add_event(f)
   table.insert(combat_engine.data.event_queue, f)
@@ -390,10 +440,16 @@ function combat_engine.pick_single_target()
 
 
     for i, ui in pairs(pui) do
-      if ui.hit then return _finisher(combat_engine.data.party[i]) end
+      if ui.hit then
+        --return _finisher(combat_engine.data.party[i]
+        return combat_engine.data.party[i]
+      end
     end
     for i, ui in pairs(eui) do
-      if ui.hit then return _finisher(combat_engine.data.enemy[i]) end
+      if ui.hit then
+        --return _finisher(combat_engine.data.enemy[i])
+        return combat_engine.data.enemy[i]
+      end
     end
     coroutine.yield()
   end
@@ -418,7 +474,7 @@ function combat_engine.confirm_cast(id, pile, index)
       },
       world_suit.layout:row(300, 50)
     )
-    coroutine.yield(registered[1])
+    if registered[1] then return end
     token()
   end
 end

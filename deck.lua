@@ -14,7 +14,6 @@ end
 
 function deck.create(id)
   for key, pile in pairs(gamedata.deck) do
-    print(key, pile)
     pile[id] = {}
   end
 end
@@ -94,6 +93,10 @@ function deck.size(id, pile)
     error(pile .. " was not found in deck")
   end
   return #_pool
+end
+
+function deck.empty(id, pile)
+  return deck.size(id, pile) == 0
 end
 
 function deck.swap(id, pile_a, pile_b)

@@ -1,3 +1,15 @@
+local card_data = {
+  cost = 0,
+  name = "Evil Potato",
+  image = "evil_potato",
+  play = {
+    personal = {
+      damage = 2,
+      card = 1
+    }
+  }
+}
+
 local function _play(userid, pile, index)
   local co = coroutine.create(combat_engine.confirm_cast)
   return signal.from_value()

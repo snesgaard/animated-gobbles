@@ -202,6 +202,7 @@ function draw_engine.create_primitive(draw_func, opague, sfx, glow)
   local function occlusion()
     if opague then
       gfx.setShader(shader.occlusion)
+      shader.occlusion:send("_is_opague", opague)
       draw_func()
     end
   end

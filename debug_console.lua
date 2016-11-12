@@ -1,4 +1,4 @@
---require "modules/LOVEDEBUG/lovedebug"
+require "modules/LOVEDEBUG/lovedebug"
 local fun = require "modules/functional"
 
 local gd = gamedata
