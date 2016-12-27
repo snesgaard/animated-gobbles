@@ -1,15 +1,13 @@
+local event = require "combat/event"
+local animation_builder = require "combat/ui/animation_builder"
+local card_seq = require "combat/ui/card_play_seq"
+
 combat = combat or {}
 
 local _visual_generator = {}
-local _effect_generator = {}
+local _effect_generator = require "combat/effect"
 
-function _effect_generator.damage(value)
-  return function(arg)
-    local id = arg.target
-    gamedata.combat.damage[id] = (gamedata.combat.damage[id] or 0) + value
-    return value
-  end
-end
+
 function _visual_generator.damage(arg, outcome)
   local id = arg.target
   local ui_updater = combat.visual.health_ui_updater(id)
@@ -23,15 +21,7 @@ function _visual_generator.damage(arg, outcome)
   end
 end
 
-function _effect_generator.heal(value)
-  return function(arg)
-    local id = arg.target
-    if gamedata.combat.damage[id] then
-      gamedata.combat.damage[id] = gamedata.combat.damage[id] - value
-      return value + math.min(gamedata.combat.damage[id], 0)
-    end
-  end
-end
+
 function _visual_generator.heal(arg, outcome)
   local id = arg.target
   local ui_updater = combat.visual.health_ui_updater(id)
@@ -40,54 +30,6 @@ function _visual_generator.heal(arg, outcome)
   end
 end
 
-function _effect_generator.card(value)
-  return function(arg)
-    local id = arg.target
-    local draw = gamedata.deck.draw
-    local hand = gamedata.deck.hand
-    local discard = gamedata.deck.discard
-    if deck.empty(id, draw) and deck.empty(id, discard) then return 0 end
-
-    local cards = {}
-    local function _do_draw(count)
-      local can_draw = math.min(count, deck.size(id, draw))
-      for i = 1, can_draw do
-        table.insert(cards, deck.draw(id, draw))
-      end
-      return can_draw
-    end
-    local draw_left = value
-    draw_left = draw_left - _do_draw(draw_left)
-
-    if draw_left > 0 then
-      draw[id] = discard[id]
-      discard[id] = {}
-      deck.shuffle(id, draw)
-      draw_left = draw_left - _do_draw(draw_left)
-    end
-
-    for _, c in pairs(cards) do deck.insert(id, hand, c, 1) end
-    return value - draw_left, cards
-  end
-end
-
-function _effect_generator.discard(value)
-  return function(arg)
-    local id = arg.target
-    local hand = gamedata.deck.hand
-    local discard = gamedata.deck.discard
-    local rng = love.math.random
-    local can_discard = math.min(value, deck.size(id, hand))
-    local cards = {}
-    for i = 1, can_discard do
-      local index = rng(1, deck.size(id, hand))
-      local card = deck.draw(id, hand, card)
-      table.insert(cards, card)
-      deck.insert(id, discard, card)
-    end
-    return can_discard, cards
-  end
-end
 
 local function _effect_parse(effects)
   local effect_executors = {}
@@ -110,86 +52,146 @@ function _animation_generator.projectile(visual_data, arg, effect_visualizers)
   )
 end
 
-function combat.parse_card_play(id, pile, index, data)
-  data = data.play
-  local ui_process
+local function parse_play(id, data, control)
+    local ui_process
+    local personal
+    local single
+    local all
 
-  local personal
-  local single
-  local all
+    local all_effects = {}
 
-  local all_effects = {}
+    local arg = {
+      user = id
+    }
 
-  local arg = {
-    user = id
-  }
-
-  local function insert_effect(arg_format, effects)
-    table.insert(all_effects, {
-      arg_format = arg_format, effects = effects
-    })
-  end
-
-  if data.personal then
-    insert_effect(
-      function(arg) return {target = arg.user} end,
-      _effect_parse(data.personal)
-    )
-  end
-  if data.single then
-    insert_effect(
-      function(arg) return arg end,
-      _effect_parse(data.single)
-    )
-    ui_process = function(arg)
-      arg.target = combat_engine.pick_single_target()
-      return arg
+    local function insert_effect(name, arg_format, effects)
+      all_effects[name] = {
+        arg_format = arg_format, effects = effects
+      }
     end
-  end
-  if data.all then
-    insert_effect(
-      function(arg) return {target = arg.target} end, -- Return a list of targets here
-      _effect_parse(data.all)
-    )
-  end
-  ui_process = ui_process or function(arg)
-    combat_engine.confirm_cast(id, pile, index)
-    return arg
-  end
-  arg = ui_process(arg)
 
-  signal.emit(combat_engine.events.card.play, id, pile, index)
-
-  local viz = {}
-  for _, effects in pairs(all_effects) do
-    local _args = {effects.arg_format(arg)}
-    for key, e in pairs(effects.effects) do
-      local viz_generator = _visual_generator[key]
-      for _, a in pairs(_args) do
-        local outcome = {e(a)}
-        if viz_generator then
-          table.insert(viz, viz_generator(a, outcome))
-        end
+    if data.personal then
+      insert_effect(
+        "personal", function(arg) return {target = arg.user} end,
+        _effect_parse(data.personal)
+      )
+    end
+    if data.single then
+      insert_effect(
+        "single", function(arg) return arg end,
+        _effect_parse(data.single)
+      )
+      ui_process = function(arg)
+        --combat_engine.set_selected_card(id, cardid)
+        arg.target = control.pick_single_target()
+        return arg
       end
     end
+    if data.all then
+      insert_effect(
+        "all", function(arg) return {target = arg.target} end, -- Return a list of targets here
+        _effect_parse(data.all)
+      )
+    end
+    if data.random then
+      insert_effect(
+        "random",
+        function(arg)
+          local output = {}
+          local reps = data.random.rep or 1
+          local rng = love.math.random
+          local user_faction = combat_engine.faction(arg.user)
+          local friends  = {
+            [combat_engine.DEFINE.FACTION.PLAYER] = combat_engine.data.party,
+            [combat_engine.DEFINE.FACTION.ENEMY] = combat_engine.data.enemy
+          }
+          local opponents = {
+            [combat_engine.DEFINE.FACTION.PLAYER] = combat_engine.data.enemy,
+            [combat_engine.DEFINE.FACTION.ENEMY] = combat_engine.data.party
+          }
+          local target_faction = data.random.faction
+          local target_pool
+          if target_faction == "opponent" then
+            target_pool = opponents[user_faction]
+          elseif target_faction == "friend" then
+            target_pool = friends[user_faction]
+          else
+            target_pool = concatenate(
+              opponents[user_faction], friends[user_faction]
+            )
+          end
+          for i = 1, reps do
+            local _arg = {
+              target = target_pool[rng(#target_pool)],
+              user = arg.user
+            }
+            table.insert(output, _arg)
+          end
+          return unpack(output)
+        end,
+        _effect_parse(data.random)
+      )
+    end
+    ui_process = ui_process or function(arg)
+      --combat_engine.set_selected_card(id, cardid)
+      control.confirm_cast()
+      return arg
+    end
+    arg = ui_process(arg)
+    return arg, all_effects
+end
+
+local function execute_play(arg, all_effects)
+  local all_vis = {}
+  for name, effects in pairs(all_effects) do
+    local vis = {}
+    local _args = {effects.arg_format(arg)}
+    for _, a in pairs(_args) do
+      local m = map(function(e) return e(a) end, effects.effects)
+      local arg_vis = flatten(m)
+      table.insert(vis, {effect = arg_vis, arg = a})
+    end
+    all_vis[name] = vis
   end
+  return all_vis
+end
 
-  local effect_vis = function() for _, v in pairs(viz) do v() end end
+function combat.parse_card_play(id, pile, index, control)
+  local cardid = deck.peek(id, pile, index)
+  local effects = gamedata.card.effect[cardid]
+  local data = effects.play
 
-  if not data.visual then
-    effect_vis()
-    return
-  end
-  -- Build the animation sequence
-  local animation_generator = _animation_generator[data.visual.type]
+  local arg, all_effects = parse_play(id, data, control)
 
-  if not animation_generator then
-    effect_vis()
-    return
-  end
 
-  combat_engine.add_event(
-    --combat.visual.melee_attack(arg.user, arg.target, visualizer)
-    animation_generator(data.visual, arg, effect_vis)
-  )
+  deck.remove(id, pile, index)
+  deck.insert(id, gamedata.deck.discard, cardid)
+  local cost = gamedata.card.cost[cardid]
+  combat_engine.data.action_point = combat_engine.data.action_point - cost
+  --signal.echo(event.core.card.begin, id, cardid)
+
+  local all_viz = execute_play(arg, all_effects)
+
+  all_viz.play = {
+    {
+      effect = signal.echo(event.core.card.play, id, cardid, arg.target),
+      arg = {user = id, target = id}
+    }
+  }
+
+  for key, val in pairs(all_viz) do print(key, val) end
+
+  local anime = animation_builder(id, data.visual, all_viz)
+  combat_engine.add_event(card_seq, cardid, anime)
+end
+
+function combat.parse_play(id, data, control)
+  local arg, all_effects = parse_play(id, data, control)
+  local cost = data.cost or 0
+  combat_engine.data.action_point = combat_engine.data.action_point - cost
+
+  local all_viz = execute_play(arg, all_effects)
+
+  local anime = animation_builder(id, data.visual, all_viz)
+  combat_engine.add_event(anime)
 end

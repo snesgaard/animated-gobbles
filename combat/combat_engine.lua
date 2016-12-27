@@ -4,6 +4,21 @@ require "combat/visual"
 require "combat/mechanic"
 require "combat/parser"
 
+local effect_generator = require "combat/effect"
+
+event = require "combat/event"
+ui = {
+  draw_text_box = require "combat/ui/text_box",
+  hand = require "combat/ui/hand",
+  highlight = require "combat/ui/highlight",
+  player = require "combat/ui/player",
+  common = require "combat/ui/common",
+  turn = require "combat/ui/turn",
+  action_viz = require "combat/ui/action_visualizer",
+  icon = require "combat/ui/icon_popup",
+  pc_stat = require "combat/ui/character_stat"
+}
+
 local gfx = love.graphics
 
 combat_engine = {
@@ -11,7 +26,10 @@ combat_engine = {
 }
 
 combat_engine.DEFINE = {
-  FACTION = {PLAYER = "player", ENEMY = "enemy"}
+  FACTION = {PLAYER = "player", ENEMY = "enemy"},
+  LAYOUT = {
+    MSG_BOX = {800, 650}
+  },
 }
 
 local combat_suit = suit.new()
@@ -37,7 +55,8 @@ combat_engine.resource = {
   },
   shader = {},
   mesh = {},
-  suit = {world = world_suit}
+  suit = {world = world_suit},
+  pool = {event = lambda_pool.new()}
 }
 
 combat_engine.data = {
@@ -116,34 +135,9 @@ local DEFINE = {
 }
 
 function combat_engine.play_card(userid, pile, index)
-  local card_data = {
-    cost = 1,
-    name = "Potato",
-    image = "potato",
-    play = {
-      single = {damage = 2},
-      personal = {card = 1},
-      visual = {
-        type = "projectile",
-        projectile = {
-          sprite = "potato",
-          gravity = -1000,
-          time = 0.65,
-        },
-        on_hit = {
-          type = "bounce",
-          sprite = "potato",
-          gravity = -1000,
-          time = 0.65,
-          distribution = "uniform",
-          range = {-50, 50},
-        }
-      }
-    }
-  }
   local sig = {}
   local play = coroutine.wrap(function()
-    combat.parse_card_play(userid, pile, index, card_data)
+    combat.parse_card_play(userid, pile, index)
   end)
   local abort = signal.merge(
     signal.type("mousepressed")
@@ -155,7 +149,6 @@ function combat_engine.play_card(userid, pile, index)
         return userid == _userid and pile == _pile and index == _index
       end)
   ).listen(function() table.insert(sig, 1) end)
-
   while true do
     play()
     abort()
@@ -164,10 +157,20 @@ function combat_engine.play_card(userid, pile, index)
   end
 end
 
-function combat_engine.add_event(f)
-  table.insert(combat_engine.data.event_queue, f)
+function combat_engine.add_event(f, ...)
+  --table.insert(combat_engine.data.event_queue, f)
+  local pool = combat_engine.resource.pool.event
+  pool:queue("event", f, ...)
 end
 
+function combat_engine.handle_event_queue(dt)
+  local pool = combat_engine.resource.pool.event
+  while true do
+    pool:update(dt)
+    dt = coroutine.yield()
+  end
+end
+--[[
 function combat_engine.handle_event_queue()
   local queue = combat_engine.data.event_queue
   if #queue <= 0 then
@@ -180,6 +183,105 @@ function combat_engine.handle_event_queue()
   while lambda.status(sub_token) do coroutine.yield() end
 
   return combat_engine.handle_event_queue()
+end
+]]--
+
+function combat_engine.handle_card_event_queue()
+  local queue = combat_engine.data.card_event_queue
+  if #queue <= 0 then
+    return combat_engine.handle_card_event_queue(coroutine.yield())
+  end
+  local f = queue[1]
+  for i = 1, #queue do queue[i] = queue[i + 1] end
+end
+
+-- Input a table where each entry has one of the following values
+-- nil -- Card is already in hand and position will be set according to order
+-- "drawn" -- Card will be moved to the right and then to position according to hand order
+-- "discarded" -- Card will be set as in hand and will then be removed,
+--                causing cards to the left to move and cover the empty space
+function combat_engine.animate_hand(dt, highlight_func, cardids, handstate)
+  -- Initial state
+  local pre_cards = {}
+  local drawn_cards = {}
+  -- Final state
+  local post_cards = {}
+  local discard_cards = {}
+  -- Sort cards into different catagories for later use
+  local function sort_cardids()
+    local action_table = {}
+    function action_table.default(cardindex)
+      table.insert(pre_cards, cardindex)
+      table.insert(post_cards, cardindex)
+    end
+    function action_table.drawn(cardindex)
+      table.insert(drawn_cards, cardindex)
+      table.insert(post_cards, cardindex)
+    end
+    function action_table.discarded(cardindex)
+      table.insert(pre_cards, cardindex)
+      table.insert(discard_cards, cardindex)
+    end
+    for cindex, cid in ipairs(cardids) do
+      local f = action_table[handstate[cid] or "default"]
+      f(cindex)
+    end
+  end
+  sort_cardids()
+  local function card_offset_x(size, index)
+    return (size + 1 - index  - 1) * 180
+  end
+  -- Set initial positions
+  for i, cindex in pairs(pre_cards) do
+    local cid = cardids[cindex]
+    gamedata.spatial.x[cid] = 40 + card_offset_x(#pre_cards, i)
+    gamedata.spatial.y[cid] = 750
+  end
+  for i, cindex in pairs(drawn_cards) do
+    local cid = cardids[cindex]
+    gamedata.spatial.x[cid] = 2000 + card_offset_x(#drawn_cards, i)
+    gamedata.spatial.y[cid] = 750
+  end
+  -- Generate pool for handling animator porcedures
+  local animation_types = {}
+  local animation_pool = lambda_pool.new()
+  local function update_render_order(cardids)
+    local l = {}
+    for _, cid in pairs(cardids) do
+      table.insert(l, cid)
+    end
+    return l
+  end
+  local state = {
+    card_render_order = update_render_order(cardids)
+  }
+  for i, cindex in pairs(post_cards) do
+    animation_pool:run(function(dt)
+      local cid = cardids[cindex]
+      local x = 40 + card_offset_x(#post_cards, i)
+      local y = gamedata.spatial.y[cid]
+      local speed = handstate[cid] == "drawn" and 1500 or 500
+      combat_visual.move_to(cid, x, y, speed, dt)
+    end)
+  end
+  for _, cindex in pairs(discard_cards) do
+    animation_pool:run(function(dt)
+      local cid = cardids[cindex]
+      local x = gamedata.spatial.x[cid]
+      local y = gamedata.spatial.y[cid]
+      combat_visual.move_to(cid, x, y + 50, 50, dt)
+      cardids[cindex] = nil
+      state.card_render_order = update_render_order(cardids)
+    end)
+    -- TODO: add color gradient to misc process
+  end
+
+  while not animation_pool:empty() do
+    animation_pool:update(dt)
+    -- TODO: Draw call to hand
+    dt, highlight_func = coroutine.yield()
+  end
+  -- TODO return stable animation procedure of hand
 end
 
 function combat_engine.entity_marker(id)
@@ -425,7 +527,8 @@ function combat_engine.pick_single_target()
     return _finisher(_hit_id)
   end
   while true do
-    world_suit.layout:reset(800, 25)
+    local x, y = unpack(combat_engine.DEFINE.LAYOUT.MSG_BOX)
+    world_suit.layout:reset(x, y)
     world_suit:Label(
       "Select Target",
       {
@@ -457,14 +560,15 @@ end
 
 function combat_engine.confirm_cast(id, pile, index)
   local registered = {}
-  local token = signal.type(combat_engine.events.card.clicked)
-    .filter(function(_id, _pile, _index)
-      return id == _id and pile == _pile and index == _index
+  local token = signal.type("mousepressed")
+    .filter(function(_, _, b)
+      return b == 1
     end)
     .map(function(v) return registered, v end)
     .listen(table.insert)
   while true do
-    world_suit.layout:reset(800, 25)
+    local x, y = unpack(combat_engine.DEFINE.LAYOUT.MSG_BOX)
+    world_suit.layout:reset(x, y)
     world_suit:Label(
       "Press to Confirm",
       {
@@ -476,6 +580,7 @@ function combat_engine.confirm_cast(id, pile, index)
     )
     if registered[1] then return end
     token()
+    coroutine.yield()
   end
 end
 
@@ -542,27 +647,26 @@ function combat_engine.next_round()
 end
 
 local function _show_hand(
-  id, do_hover, highlights -- Control arguments
+  cardids, highlights, active  -- Control arguments
 )
   highlights = highlights or {}
-  local hand = gamedata.deck.hand[id]
-  for i, card_id in pairs(hand) do
-    gamedata.spatial.x[card_id] = 40 + (#hand + 1 - i  - 1) * 180
-    gamedata.spatial.y[card_id] = 750
-  end
-  local _do_hover = do_hover
+  active = active or {}
+  local hand = cardids
+  --for i, card_id in pairs(hand) do
+  --  gamedata.spatial.x[card_id] = 40 + (#hand + 1 - i  - 1) * 180
+  --  gamedata.spatial.y[card_id] = 750
+  --end
   for i, card_id in pairs(hand) do
     local cost = gamedata.card.cost[card_id]
-    --local h = cost <= combat_engine.data.action_point and DEFINE.HIGHLIGHT.SELECTED or nil
-    local h = highlights[i]
-    local hit = cards.render(card_id, _do_hover, h)
-    -- _do_hover = _do_hover and not card_ui.hovered
-    if hit then
+    local h = highlights[card_id]
+    local hit = cards.render(card_id, h)
+    -- TODO: Add a card state checler, so e.g. discarded cards can't be clicked
+    if hit and active[card_id] then
       signal.emit(combat_engine.events.card.clicked, id, gamedata.deck.hand, i)
     end
   end
   coroutine.yield()
-  return _show_hand(id, do_hover, highlights)
+  return _show_hand(cardids, highlights)
 end
 
 function subroutines_creator.show_hand(args)
@@ -573,7 +677,8 @@ function subroutines_creator.show_hand(args)
   local highlight = map(light_fun, gamedata.deck.hand[id])
 
   return coroutine.create(function(dt)
-    return _show_hand(id, hover, highlight)
+    local hand = gamedata.deck.hand[id]
+    return _show_hand(hand, highlight)
   end)
 end
 
@@ -712,14 +817,19 @@ function combat_engine.faction(id)
   if f then return f() end
 end
 
+hand_ui_pool = lambda_pool.new()
+
 function combat_engine.begin(allies, enemies)
   -- Initialize card pool
   local all_ids = {}
+  local visible = true
   for _, id in pairs(allies) do
     combat_engine.data.faction[id] = function()
       return combat_engine.DEFINE.FACTION.PLAYER
     end
+    --hand_ui_pool:run(id, ui.hand, id, visible)
     table.insert(all_ids, id)
+    visible = false
   end
   for _, id in pairs(enemies) do
     combat_engine.data.faction[id] = function()
@@ -731,24 +841,27 @@ function combat_engine.begin(allies, enemies)
   for _, id in pairs(all_ids) do
     deck.create(id)
     local collection = gamedata.combat.collection[id] or {}
-    gamedata.deck.draw[id] = map(function(c)
-      return cards.init{ui_init = c}
+    gamedata.deck.draw[id] = map(function(card_data)
+      local cardid = initresource(gamedata, cards.init, card_data)
+      return cardid
     end,
       collection
     )
     deck.shuffle(id, gamedata.deck.draw)
     combat_engine.data.script[id] = combat_engine.player_script
     local draw_size = deck.size(id, gamedata.deck.draw)
-    for i = 1, math.min(draw_size, 10) do
+    for i = 1, math.min(draw_size, 5) do
       local card_id = deck.draw(id, gamedata.deck.draw)
       deck.insert(id, gamedata.deck.hand, card_id)
     end
     -- Init ui
-    combat_engine.update_health_ui(id)
+    --combat_engine.update_health_ui(id)
+    lambda.run(ui.pc_stat, id)
   end
   combat_engine.data.turn_order = all_ids
   combat_engine.data.current_turn = 0
   -- Hacked
+  --[[
   combat_engine.subroutines.hand = subroutines_creator.show_hand{
     all_ids[1], true,
     highlight = function(id)
@@ -757,13 +870,72 @@ function combat_engine.begin(allies, enemies)
       end
     end
   }
-  combat_engine.subroutines.turn_ui = subroutines_creator.show_turn("Player")
-  combat_engine.subroutines.script = coroutine.create(
-    function()
-      return combat_engine.script.player(all_ids[1])
+  ]]--
+  lambda.run(function(dt)
+    local test_script = require "combat/script/aggresive"
+    local signal_id = {player = {}, enemy = {}}
+
+    local turn_start_data = {
+      personal = {card = 1}
+    }
+    local turn_start_control = {
+      confirm_cast = function(arg) return arg end
+    }
+
+    local function player_script(dt)
+      combat_engine.subroutines.turn_ui = coroutine.create(function(dt)
+        ui.turn(dt, "Player", "Enemy")
+      end)
+      combat_engine.data.action_point = #allies
+      combat_engine.add_event(function()
+        for _, id in pairs(allies) do
+          combat.parse_play(id, turn_start_data, turn_start_control)
+        end
+      end)
+      ui.player(dt, allies)
+      combat_engine.add_event(function()
+        signal.emit(signal_id.enemy)
+      end)
     end
-  )
-  combat_engine.subroutines.entity_mouse = coroutine.create(combat_engine.entity_mouse)
+    local function enemy_script(dt)
+      combat_engine.subroutines.turn_ui = coroutine.create(function(dt)
+        ui.turn(dt, "Enemy", "Player")
+      end)
+      combat_engine.data.action_point = #enemies
+      combat_engine.add_event(function()
+        local card_draw = effect_generator.card(1)
+        --for _, id in pairs(allies) do card_draw({target = id}) end
+      end)
+      test_script(dt, enemies)
+      combat_engine.add_event(function()
+        signal.emit(signal_id.player)
+      end)
+    end
+
+    local script = queue.new()
+    local tokens = {}
+    local script_id = {}
+    tokens.player_turn = signal.type(signal_id.player)
+      .listen(function()
+        lambda.run(script_id, player_script)
+      end)
+    tokens.enemy_turn = signal.type(signal_id.enemy)
+      .listen(function()
+        lambda.run(script_id, enemy_script)
+      end)
+    lambda.run(script_id, player_script)
+    while true do
+      for _, t in pairs(tokens) do t() end
+      coroutine.yield()
+    end
+  end)
+
+  --combat_engine.subroutines.script = coroutine.create(
+  --  function()
+  --    return combat_engine.script.player(all_ids[1])
+  --  end
+  --)
+  --combat_engine.subroutines.entity_mouse = coroutine.create(combat_engine.entity_mouse)
 
   combat_engine.data.party = allies
   combat_engine.data.enemy = enemies
@@ -772,11 +944,12 @@ function combat_engine.begin(allies, enemies)
   draw_engine.ui.world.combat = function()
 --    world_suit:draw()
   end
-
   lambda.run(
     combat_engine.resource.lambda_token.event_queue,
     combat_engine.handle_event_queue
   )
+  --lambda.run(ui.action_viz)
+  lambda.run(ui.icon)
 end
 
 local _event_handlers = {
@@ -800,14 +973,10 @@ local _event_handlers = {
 
 function combat_engine.update(dt)
   --Setup event handlers
+  hand_ui_pool:update(dt)
   for _, f in pairs(_event_handlers) do f() end
   -- Update card effects
   for _, id in pairs(combat_engine.data.party) do
-    local hand = gamedata.deck.hand[id]
-    for _, cardid in pairs(hand) do
-      local effects = gamedata.card.effects[cardid]
-      for _, e in pairs(effects) do e() end
-    end
   end
   -- Update subroutines
   for id, co in pairs(combat_engine.subroutines) do
@@ -824,6 +993,7 @@ end
 function combat_engine.draw()
   combat_suit:draw()
   world_suit:draw()
+  ui.common.screen_suit:draw()
 end
 
 require "combat/player_script"

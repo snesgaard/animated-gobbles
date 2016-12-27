@@ -1,10 +1,13 @@
 local card_data = {
-  cost = 1,
-  name = "Potato",
-  image = "potato",
+  cost = 0,
+  name = "Potato Swarm",
+  image = "dualpotato",
   play = {
-    single = {damage = 1},
-    personal = {card = 1},
+    random = {
+      faction = "opponent",
+      damage = 1,
+      rep = 4,
+    },
     visual = {
       animation = {
         type = "projectile",
@@ -15,19 +18,19 @@ local card_data = {
       on_hit = {
         type = "bounce",
         sprite = "potato",
-        gravity = -1000,
+        gravity = -3000,
         time = 0.65,
         distribution = "uniform",
-        range = {-50, 50},
+        range = {-500, 500},
       }
     }
   }
 }
 
 function card_data.play.text_compiler(data)
-  local dmg = data.single.damage
-  local card = data.personal.card
-  return string.format("A character takes %i damage. Draw %i card.", dmg, card)
+  local rep = data.random.rep
+  local dmg = data.random.damage
+  return string.format("%i random opponents takes %i damage.", rep, dmg)
 end
 
-cards.potato = card_data
+cards.dualpotato = card_data

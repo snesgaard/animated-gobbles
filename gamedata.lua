@@ -19,7 +19,9 @@ function allocresource(resource)
   return s
 end
 function freeresource(resource, id)
-  if type(id) ~= "number" then error("Unsupported id type:", id) end
+  if type(id) ~= "number" then
+    error(string.format("Unsupported id type: %s", type(id)))
+  end
   table.insert(available_id[resource], id)
   local function _erase(t, id)
     t[id] = nil
@@ -33,6 +35,16 @@ function initresource(resource, f, ...)
   local id = allocresource(resource)
   f(resource, id, ...)
   return id
+end
+
+local function _effect_table(tab)
+  tab = tab or {}
+  tab.damage = {}
+  tab.heal = {}
+  tab.card = {}
+  tab.discard = {}
+  tab.repitition = {}
+  return tab
 end
 
 gamedata = createresource({
@@ -84,14 +96,11 @@ gamedata = createresource({
     portrait = {}
   },
   card = {
+    cost = {},
+    name = {},
     image = {},
     text = {},
-    activate = {},
-    name = {},
-    cost = {},
-    target = {},
-    effects = {},
-    play = {}
+    effect = {},
   }
 })
 

@@ -5,6 +5,9 @@ parser = {}
 drawer = {}
 
 suit = require ("modules/SUIT")
+lambda_pool = require "lambda_pool"
+queue = require "queue"
+list = require "list"
 require "io"
 require "light"
 require "math"
@@ -101,13 +104,15 @@ function love.load()
     end
   end
 
-  local ally = {}
-  local enemy = {}
+  ally = {}
+  enemy = {}
   table.insert(ally, initresource(gamedata, init.engineer, 145, -133.5))
   local id = ally[1]
   local card_collection = {}
-  for i = 1, 29 do table.insert(card_collection, cards.potato) end
-  for i = 1, 1 do table.insert(card_collection, cards.evil_potato) end
+  for i = 1, 14 do table.insert(card_collection, cards.potato) end
+	for i = 1, 14 do table.insert(card_collection, cards.dualpotato) end
+  for i = 1, 2 do table.insert(card_collection, cards.evil_potato) end
+	-- print(cards.potato, cards.evil_potato)
   gamedata.combat.collection[id] = card_collection
   table.insert(ally, initresource(gamedata, init.witch, 95, -133.5))
   id = ally[2]
@@ -116,6 +121,17 @@ function love.load()
   for i = 1, 29 do table.insert(card_collection, cards.evil_potato) end
   gamedata.combat.collection[id] = card_collection
   table.insert(enemy, initresource(gamedata, init.testbox, 260, -145))
+	local card_collection = {}
+	id = enemy[1]
+	for i = 1, 15 do table.insert(card_collection, cards.potato) end
+	for i = 1, 15 do table.insert(card_collection, cards.evil_potato) end
+	gamedata.combat.collection[id] = card_collection
+	table.insert(enemy, initresource(gamedata, init.testbox, 300, -145))
+	local card_collection = {}
+	id = enemy[2]
+	for i = 1, 15 do table.insert(card_collection, cards.potato) end
+	for i = 1, 15 do table.insert(card_collection, cards.evil_potato) end
+	gamedata.combat.collection[id] = card_collection
   combat_engine.begin(ally, enemy)
 end
 
@@ -144,7 +160,6 @@ local quit_listen = signal.type("keypressed")
 
 function love.update(dt)
   -- Clean resources for next
-  signal.clear()
   quit_listen()
   update.system(dt)
   for id, co in pairs(gamedata.ai.control) do
@@ -160,6 +175,7 @@ function love.update(dt)
   entity_engine.update(dt)
   animation.update()
   collision_engine.update(dt)
+	signal.update()
 end
 
 function love.draw()

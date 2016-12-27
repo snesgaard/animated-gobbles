@@ -92,23 +92,42 @@ function cards.get_gfx()
   return atlas, anime
 end
 
-function cards.init(init_tab, ...)
-  init_tab = init_tab or {}
-  local _spec_args = {...}
-  local _ui_init = function(gd, id)
-    gd.spatial.x[id] = 0
-    gd.spatial.y[id] = 0
-    gd.spatial.width[id] = 50
-    gd.spatial.height[id] = 70
-    gd.spatial.face[id] = 4
-    gd.spatial.flip[id] = 4
+function cards.init(gamedata, id, card_data)
+  gamedata.spatial.x[id] = 0
+  gamedata.spatial.y[id] = 0
+  gamedata.spatial.width[id] = 50
+  gamedata.spatial.height[id] = 70
+  gamedata.spatial.face[id] = 4
+  gamedata.spatial.flip[id] = 4
 
-    gd.card.cost[id] = love.math.random(0, 9)
-    gd.card.text[id] = "dud"
-    gd.card.name[id] = "Recycle"
-    if init_tab.ui_init then init_tab.ui_init(gd, id, unpack(_spec_args)) end
+  gamedata.card.cost[id] = card_data.cost or 11
+  gamedata.card.name[id] = card_data.name or "Not Found"
+  gamedata.card.image[id] = card_data.image
+  local effects = {}
+
+  for key, val in pairs(card_data) do
+    if type(val) == "table" then
+      effects[key] = util.deep_copy(val)
+    end
   end
-  return initresource(gamedata, _ui_init)
+  gamedata.card.effect[id] = effects
+
+  gamedata.card.text[id] = cards.compile_text(gamedata.card.effect[id])
+end
+
+function cards.compile_text(effects)
+  local str
+  for _, effect in pairs(effects) do
+    if effect.text_compiler then
+      local part_str = effect.text_compiler(effect)
+      if not str then
+        str = part_str
+      else
+        str = string.format("%s %s", str, part_str)
+      end
+    end
+  end
+  return str or "Nope"
 end
 
 local function card_back_render(_, opt, x, y, width, height)
@@ -123,8 +142,6 @@ local function card_back_render(_, opt, x, y, width, height)
     gfx.draw(sheet, quad, x, y, 0, sx, sy)
     gfx.setShader()
   end, "replace", 1, false)
-  local hover_render_state = opt.state == "hovered" or opt.state == "active"
-  --if hover_render_state and opt.do_hover_render then
   local r, g, b, a = 200, 200, 0, 200
   if opt.highlight then
     local r, g, b, a = unpack(opt.highlight)
@@ -163,11 +180,9 @@ local function cost_icon_render(_, opt, x, y, width, height)
   gfx.draw(sheet, quad, x, y, 0, sx, sy)
 end
 
-local Title
-
-function cards.render(id, state_render, highlight)
-  local x = gamedata.spatial.x[id]
-  local y = gamedata.spatial.y[id]
+function cards.render(id, highlight, x, y)
+  local x = x or gamedata.spatial.x[id]
+  local y = y or gamedata.spatial.y[id]
   local w = gamedata.spatial.width[id]
   local h = gamedata.spatial.height[id]
   local sx = gamedata.spatial.face[id]
@@ -206,10 +221,7 @@ function cards.render(id, state_render, highlight)
     y + 8 * sy, sx, sy
   )
   table.insert(ui_ids, card_suit:Button(
-    id, {
-      draw = card_back_render, do_hover_render = state_render, -- Leave for clarity
-      highlight = highlight
-    },
+    id, {draw = card_back_render, highlight = highlight},
     x, y, w * sx, h * sy
   ))
   local hit = false
@@ -225,3 +237,4 @@ end
 
 require "cards/potato"
 require "cards/evil_potato"
+require "cards/dual_potato"

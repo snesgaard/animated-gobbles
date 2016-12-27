@@ -95,8 +95,9 @@ function states.action_pick(id)
   end)
   .listen(table.insert)
 
-  combat_engine.set_available_card(id)
+  --combat_engine.set_available_card(id)
   combat_engine.entity_marker(id)
+  signal.emit(event.core.character.select, id)
 
   while true do
     card_clicked()

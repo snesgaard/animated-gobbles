@@ -5,8 +5,17 @@ local spatial = gamedata.spatial
 combat = combat or {}
 combat.visual = {}
 
+function combat.visual.wait(time, dt)
+  while time - dt > 0 do
+    time = time - dt
+    dt = coroutine.yield()
+  end
+end
 
-function combat.visual.move_to(id, x, y, speed, dt)
+-- Last table is an optinal output variable
+-- If not supplied, will write to the global table
+function combat.visual.move_to(id, x, y, speed, dt, spatial)
+  spatial = spatial or gamedata.spatial
   dt = dt or 0
   local dx = x - spatial.x[id]
   local dy = y - spatial.y[id]
@@ -106,8 +115,8 @@ function combat.visual.projectile(
       draw_func, true, false, true
     )
     local function prehit()
-      local gy = visual_data.projectile.gravity
-      local time = visual_data.projectile.time
+      local gy = visual_data.animation.gravity
+      local time = visual_data.animation.time
       --combat.visual.move_to(pid, tx, ty, speed, dt)
       combat.visual.move_arch(pid, tx, ty, time, gy, dt)
     end

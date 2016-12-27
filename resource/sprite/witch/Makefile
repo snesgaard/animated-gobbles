@@ -1,5 +1,5 @@
 #partial_hitbox=$(addprefix ./build/, $(notdir $(frames:.png=.lua)))
-frames=$(addprefix ./build/, combat_idle.png\
+frames=$(addprefix ./build/, combat_idle.png suikia.png\
 				)
 boundries=$(frames:.png=.lua)
 info=info.lua
@@ -24,9 +24,11 @@ $(sheet): $(frames)
 	@python $(normal_script) $(sheet) $(nmap)
 
 ./build/combat_idle.%: ./frame/combat_idle.png
-	@python $(generate_script) -w 96 -e 55 -f $(@:.lua=.png) -l $(@:.png=.lua) \
-	 														$<
+	@python $(generate_script) -w 96 -e 55 -f $(@:.lua=.png) -l $(@:.png=.lua) $<
 
+
+./build/suikia.%: ./frame/suikia.png
+	@python $(generate_script) -w 74 -e 106 -f $(@:.lua=.png) -l $(@:.png=.lua) $<
 
 create_build_dirs:
 	@mkdir -p build

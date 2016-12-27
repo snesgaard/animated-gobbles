@@ -17,15 +17,37 @@ function util.duplicate(val, n)
   return t
 end
 
+function util.deep_copy(src, dst)
+  dst = dst or {}
+  for key, val in pairs(src) do
+    if type(val) == "table" then
+      dst[key] = util.deep_copy(val)
+    else
+      dst[key] = val
+    end
+  end
+  return dst
+end
+
 function concatenate(...)
   local lists = {...}
   local aggr = {}
-  for _, list in ipairs(lists) do
-    for _, val in ipairs(list) do
+  for _, list in pairs(lists) do
+    for _, val in pairs(list) do
       table.insert(aggr, val)
     end
   end
   return aggr
+end
+
+function flatten(listoflists)
+  local res = {}
+  for _, list in pairs(listoflists) do
+    for _, val in pairs(list) do
+      table.insert(res, val)
+    end
+  end
+  return res
 end
 
 function zip(...)

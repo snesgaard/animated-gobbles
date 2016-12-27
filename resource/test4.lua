@@ -124,7 +124,7 @@ return {
           type = "lantern_A",
           shape = "rectangle",
           x = 76,
-          y = 111,
+          y = 50,
           width = 16,
           height = 16,
           rotation = 0,
