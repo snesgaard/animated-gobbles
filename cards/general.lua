@@ -7,6 +7,11 @@ local card_frame_shader
 local icon_font
 local name_font = {}
 
+local DEFINE = {
+  WIDTH = 50,
+  HEIGHT = 70
+}
+
 local _shader_txt = [[
 vec4 effect( vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
 {
@@ -95,8 +100,8 @@ end
 function cards.init(gamedata, id, card_data)
   gamedata.spatial.x[id] = 0
   gamedata.spatial.y[id] = 0
-  gamedata.spatial.width[id] = 50
-  gamedata.spatial.height[id] = 70
+  gamedata.spatial.width[id] = DEFINE.WIDTH
+  gamedata.spatial.height[id] = DEFINE.HEIGHT
   gamedata.spatial.face[id] = 4
   gamedata.spatial.flip[id] = 4
 
@@ -180,6 +185,13 @@ local function cost_icon_render(_, opt, x, y, width, height)
   gfx.draw(sheet, quad, x, y, 0, sx, sy)
 end
 
+function cards.suit_draw(cardid, opt, x, y, w, h)
+  local cost = gamedata.card.cost[id]
+  local sx = w / DEFINE.WIDTH
+  local sy = h / DEFINE.HEIGHT
+
+end
+
 function cards.render(id, highlight, x, y)
   local x = x or gamedata.spatial.x[id]
   local y = y or gamedata.spatial.y[id]
@@ -234,6 +246,8 @@ end
 function cards.draw()
   card_suit:draw()
 end
+
+require "cards/draw"
 
 require "cards/potato"
 require "cards/evil_potato"

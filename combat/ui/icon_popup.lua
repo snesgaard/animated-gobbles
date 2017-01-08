@@ -1,5 +1,6 @@
 local event = require "combat/event"
 local common = require "combat/ui/common"
+local theme = require "combat/ui/theme"
 
 local screen_suit = common.screen_suit
 
@@ -9,12 +10,20 @@ local DEFINE = {
   HEIGHT = 100,
   DY = -100,
   SPEED = 100,
-  ID = 1
+  ID = 1,
+  THEME = {
+    DAMAGE = {
+      normal = {
+        bg = {255, 255, 255}, fg = theme.health.low
+      }
+    }
+  }
 }
 
 local draw = {}
-function draw.damage(damage)
 
+function draw.damage(_, opt, x, y, w, h)
+  screen_suit.theme.Label(opt.dmg, opt, x, y, w, h)
 end
 
 local function animate_icon(dt, x, y, opt)
@@ -31,7 +40,7 @@ local function animate_icon(dt, x, y, opt)
   end)
   while not state.terminate do
     screen_suit:Label(
-      "smorc", state.x[dummyid], state.y[dummyid], DEFINE.WIDTH, DEFINE.HEIGHT
+      "smorc", opt, state.x[dummyid], state.y[dummyid], DEFINE.WIDTH, DEFINE.HEIGHT
     )
     mover(dt)
     dt = coroutine.yield()
@@ -50,7 +59,13 @@ return function(dt)
   tokens.damage = signal.merge(
     signal.type(event.core.character.damage)
       .map(function(id, damage)
-        return id, {align = "center"}
+        return id, {
+          align = "center",
+          draw = draw.damage,
+          color = DEFINE.THEME.DAMAGE,
+          dmg = damage,
+          font = common.font.s35
+        }
       end)
   ).listen(function(id, opt)
     return function()
@@ -60,7 +75,7 @@ return function(dt)
       local h = gamedata.spatial.height[id]
       x, y = camera.transform(camera_id, level, x, y + h)
       x = x - DEFINE.WIDTH * 0.5
-      y = y - DEFINE.HEIGHT * 0.5
+      y = y - DEFINE.HEIGHT * 0.75
       handler_pool:queue(id, add_to_pool, visual_pool, x, y, opt)
     end
   end)

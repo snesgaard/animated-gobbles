@@ -16,7 +16,8 @@ ui = {
   turn = require "combat/ui/turn",
   action_viz = require "combat/ui/action_visualizer",
   icon = require "combat/ui/icon_popup",
-  pc_stat = require "combat/ui/character_stat"
+  pc_stat = require "combat/ui/character_stat",
+  equip_bar = require "combat/ui/equip_bar"
 }
 
 local gfx = love.graphics
@@ -950,6 +951,18 @@ function combat_engine.begin(allies, enemies)
   )
   --lambda.run(ui.action_viz)
   lambda.run(ui.icon)
+  local function init_equip_bars()
+    local w, h = ui.equip_bar.width(), ui.equip_bar.height()
+    local y
+    combat_suit.layout:reset(0, 20, 20, 35)
+    _, y = combat_suit.layout:row(w, h)
+    lambda.run(ui.equip_bar.weapon, y)
+    _, y = combat_suit.layout:row(w, h)
+    lambda.run(ui.equip_bar.armor, y)
+    _, y = combat_suit.layout:row(w, h)
+    lambda.run(ui.equip_bar.ring, y)
+  end
+  init_equip_bars()
 end
 
 local _event_handlers = {

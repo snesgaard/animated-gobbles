@@ -9,7 +9,6 @@ function _animation_generator.default(_, _, all_effects)
   return function(dt)
     for name, named_effect in pairs(all_effects) do
       for _, effect in pairs(named_effect) do
-        print(effect, effect.effect, name)
         for _, e in pairs(effect.effect) do
           map(function(f) return f() end, e)
         end

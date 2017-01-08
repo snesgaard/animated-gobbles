@@ -179,8 +179,6 @@ function combat.parse_card_play(id, pile, index, control)
     }
   }
 
-  for key, val in pairs(all_viz) do print(key, val) end
-
   local anime = animation_builder(id, data.visual, all_viz)
   combat_engine.add_event(card_seq, cardid, anime)
 end

@@ -1,6 +1,7 @@
 local core = event.core
 local visual = event.visual
 local highlight = require "combat/ui/highlight"
+local common = require "combat/ui/common"
 
 local DEFINE = {
   DRAW_SPEED = 3000,

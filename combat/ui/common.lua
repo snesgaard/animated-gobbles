@@ -13,7 +13,8 @@ local common = {
     marker = loadshader("resource/shader/entity_marker.glsl")
   },
   font = {
-    s20 = love.graphics.newFont(20)
+    s20 = love.graphics.newFont(20),
+    s35 = love.graphics.newFont(35)
   },
 }
 
