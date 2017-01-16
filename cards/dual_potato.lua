@@ -1,8 +1,9 @@
 local card_data = {
-  cost = 0,
+  cost = 2,
   name = "Potato Swarm",
   image = "dualpotato",
   play = {
+    --personal = {card = 3},
     random = {
       faction = "opponent",
       damage = 1,

@@ -2,11 +2,21 @@ local core = event.core
 local visual = event.visual
 local highlight = require "combat/ui/highlight"
 local common = require "combat/ui/common"
+local x_suit = require "combat/ui/x_suit"
 
 local DEFINE = {
   DRAW_SPEED = 3000,
   PLAY_SPEED = 1000,
+  PLAY_X = 800,
+  PLAY_Y = 150,
+  PLAY_SCALE = 6,
+  SHOW_TIME = 0.2,
+  suit = x_suit()
 }
+
+function draw_engine.ui.screen.hand()
+  DEFINE.suit:draw()
+end
 
 local function render_hand(
   userid, hand, highlights, active  -- Control arguments
@@ -105,6 +115,7 @@ function process_state.default(dt, userid, state)
     end)
 
   while true do
+    DEFINE.suit:Button("eh", 0, 0, 10, 10)
     for _, t in pairs(tokens) do t() end
     state.pool:update(dt)
     local cardstate = render_hand(
@@ -197,6 +208,172 @@ function process_state.selected(dt, userid, card, state)
     if flags.terminate then
       return process_state.default(dt, userid, state)
     end
+  end
+end
+
+local function draw_card_with_highlight(cardid, opt, x, y, w, h)
+  if opt.highlight then
+    gfx.setColor(unpack(opt.highlight))
+    cards.suit_highlight(cardid, opt, x, y, w, h)
+  end
+  gfx.setColor(255, 255, 255)
+  cards.suit_draw(cardid, opt, x, y, w, h)
+end
+
+local function cost_hightlight(cardid)
+  if gamedata.card.cost[cardid] <= combat_engine.data.action_point then
+    return {0, 255, 0, 200}
+  end
+end
+
+local function _handle_card_play(state, userid, cardid)
+  local x = state.x[cardid]
+  local y = state.y[cardid]
+  local s = state.scale[cardid]
+  state.scale[cardid] = nil
+  state.selected = nil
+  state.draw_pool:run(cardid, cards.animate_fade, cardid, DEFINE.suit, x, y, s)
+
+  local hand = gamedata.deck.hand[userid]
+  for i, cid in pairs(hand) do
+    local fx, fy = hand_position(i)
+    local ix, iy = state.x[cid] or fx, state.y[cid] or fy
+    state.highlight[cid] = cost_hightlight(cid)
+    local function f(t)
+      local ix, iy = state.x[cid] or fx, state.y[cid] or fy
+      while true do
+        state.x[cid] = fx * t + ix * (1 - t)
+        state.y[cid] = fy * t + iy * (1 - t)
+        t = coroutine.yield()
+      end
+    end
+    state.animation_pool:queue(cid, util.gerp, 0.2, coroutine.wrap(f))
+  end
+end
+
+local function initialize(userid)
+  local state = {
+    draw_pool = lambda_pool.new(),
+    animation_pool = lambda_pool.new(),
+    x = {},
+    y = {},
+    highlight = {},
+    card = {},
+    selected = nil,
+    reactions = {},
+    scale = {},
+  }
+
+  state.reactions.cancel = signal.type("mousepressed")
+    .filter(function(_, _, b)
+      return state.selected and b == 2
+    end)
+    .listen(function()
+      state.selected = nil
+      state.highlight = {}
+      local hand = gamedata.deck.hand[userid]
+      for i, cardid in pairs(hand) do
+        local ix, iy, is = state.x[cardid], state.y[cardid], state.scale[cardid]
+        local fx, fy = hand_position(i)
+        local fs = 4
+        state.highlight[cardid] = cost_hightlight(cardid)
+        local function f(t)
+          local ix, iy, is = state.x[cardid], state.y[cardid], state.scale[cardid]
+          while true do
+            state.x[cardid] = fx * t + ix * (1 - t)
+            state.y[cardid] = fy * t + iy * (1 - t)
+            if is then
+              state.scale[cardid] = fs * t + is * (1 - t)
+            end
+            t = coroutine.yield()
+          end
+        end
+        state.animation_pool:queue(cardid, util.gerp, 0.2, coroutine.wrap(f))
+      end
+    end)
+  state.reactions.draw = signal.type(core.card.draw)
+    .filter(function(id) return id == userid end)
+    .listen(function(userid, cardid)
+      local deck_size = deck.size(userid, gamedata.deck.hand)
+      local fx, fy = hand_position(deck_size)
+      local ix = 2000
+      return function()
+        state.y[cardid] = fy
+        state.scale[cardid] = 4
+        if not state.selected then
+          state.highlight[cardid] = cost_hightlight(cardid)
+        end
+        local function f(t)
+          fx = state.x[cardid] or fx
+          while true do
+            state.x[cardid] = fx * t + ix * (1 - t)
+            t = coroutine.yield()
+          end
+        end
+        state.animation_pool:queue(cardid, util.gerp, 0.2, coroutine.wrap(f))
+      end
+    end)
+  state.reactions.play = signal.type(core.card.play)
+    .filter(function(id) return id == userid end)
+    .map(function(...) return state, ... end)
+    .listen(_handle_card_play)
+
+  local hand = gamedata.deck.hand[userid]
+  for i, cardid in pairs(hand) do
+    state.x[cardid], state.y[cardid] = hand_position(i)
+    state.scale[cardid] = 4
+    state.highlight[cardid] = cost_hightlight(cardid)
+  end
+
+  return state
+end
+
+function process_state.default(dt, userid, state)
+  state = state or initialize(userid)
+  while true do
+    for _, r in pairs(state.reactions) do r() end
+    state.animation_pool:update(dt)
+    state.draw_pool:update(dt)
+    local hand = gamedata.deck.hand[userid]
+    local cardstate = map(
+      function(cardid)
+        if state.scale[cardid] then
+          return DEFINE.suit:Button(
+            cardid, {
+              draw = draw_card_with_highlight,
+              highlight = state.highlight[cardid]
+            }, state.x[cardid], state.y[cardid],
+            cards.DEFINE.WIDTH * state.scale[cardid],
+            cards.DEFINE.HEIGHT * state.scale[cardid]
+          )
+        else
+          return {}
+        end
+      end,
+      gamedata.deck.hand[userid]
+    )
+    local function search_for_hit(cardstate)
+      for i = #cardstate, 1, -1 do
+        if cardstate[i].hit then return i end
+      end
+    end
+    local hit_card = search_for_hit(cardstate)
+    local cardid = deck.peek(userid, gamedata.deck.hand, hit_card)
+    local cost = gamedata.card.cost[cardid]
+    if hit_card and cost <= combat_engine.data.action_point  and not state.selected then
+      state.selected = hit_card
+      state.highlight = {[cardid] = {0, 0, 255, 200}}
+      local ix, iy, is = state.x[cardid], state.y[cardid], state.scale[cardid]
+      local fx, fy, fs = DEFINE.PLAY_X, DEFINE.PLAY_Y, DEFINE.PLAY_SCALE
+      state.animation_pool:run(cardid, util.gerp, 0.2, function(t)
+        state.x[cardid] = fx * t + ix * (1 - t)
+        state.y[cardid] = fy * t + iy * (1 - t)
+        state.scale[cardid] = fs * t + is * (1 - t)
+      end)
+    else
+      hit_card = nil
+    end
+    dt = coroutine.yield(hit_card)
   end
 end
 

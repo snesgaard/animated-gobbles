@@ -118,6 +118,10 @@ function cards.init(gamedata, id, card_data)
   gamedata.card.effect[id] = effects
 
   gamedata.card.text[id] = cards.compile_text(gamedata.card.effect[id])
+
+  if card_data.react then
+    gamedata.card.react[id] = card_data.react(id)
+  end
 end
 
 function cards.compile_text(effects)
@@ -252,3 +256,4 @@ require "cards/draw"
 require "cards/potato"
 require "cards/evil_potato"
 require "cards/dual_potato"
+require "cards/fury"

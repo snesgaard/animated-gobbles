@@ -851,7 +851,7 @@ function combat_engine.begin(allies, enemies)
     deck.shuffle(id, gamedata.deck.draw)
     combat_engine.data.script[id] = combat_engine.player_script
     local draw_size = deck.size(id, gamedata.deck.draw)
-    for i = 1, math.min(draw_size, 5) do
+    for i = 1, math.min(draw_size, 3) do
       local card_id = deck.draw(id, gamedata.deck.draw)
       deck.insert(id, gamedata.deck.hand, card_id)
     end
@@ -998,6 +998,15 @@ function combat_engine.update(dt)
       --print(id, ret)
       if not ret then
         subroutines[id] = nil
+      end
+    end
+  end
+  -- Fetch reactions from all card currently in hand
+  for _, id in pairs(combat_engine.data.party) do
+    for _, cardid in pairs(gamedata.deck.hand[id]) do
+      local r = gamedata.card.react[cardid]
+      for _, f in pairs(r or {}) do
+        f()
       end
     end
   end

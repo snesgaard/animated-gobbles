@@ -118,8 +118,9 @@ function love.load()
   table.insert(ally, initresource(gamedata, init.witch, 95, -133.5))
   id = ally[2]
   local card_collection = {}
-  for i = 1, 1 do table.insert(card_collection, cards.potato) end
-  for i = 1, 29 do table.insert(card_collection, cards.evil_potato) end
+  for i = 1, 10 do table.insert(card_collection, cards.potato) end
+  for i = 1, 10 do table.insert(card_collection, cards.evil_potato) end
+	for i = 1, 10 do table.insert(card_collection, cards.fury) end
   gamedata.combat.collection[id] = card_collection
   table.insert(enemy, initresource(gamedata, init.testbox, 260, -145))
 	local card_collection = {}

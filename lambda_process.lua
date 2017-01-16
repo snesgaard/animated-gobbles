@@ -49,13 +49,13 @@ function lambda.run(...)
     end
   end
   local id = allocresource(pool)
-  local co = coroutine.create(function(...)
-    f(...)
+  local run = coroutine.wrap(function(dt)
+    f(dt, unpack(args))
     _stop(id)
   end)
-  local run = function(dt)
-    return coroutine.resume(co, dt, unpack(args))
-  end
+  --function(dt)
+  --  return coroutine.resume(co, dt, unpack(args))
+  --end
   pool.process[id] = run
   pool.name[id] = name
   if name then
@@ -83,8 +83,21 @@ function lambda.update(dt)
   for _, id in pairs(lambda.__sorted_update) do
     local run = pool.process[id]
     local r = run(dt)
-    if not r then lambda.stop(id) end
   end
+end
+
+-- Same as update, except it gathers the return values of all process and returns them
+function lambda.map(dt)
+  if lambda.__sort_update_order then __do_sort_updates() end
+
+  lambda.__sort_update_order = false
+
+  local res = {}
+  for _, id in pairs(lambda.__sorted_update) do
+    local run = pool.process[id]
+    table.insert(res, {run(dt)})
+  end
+  return res
 end
 
 function lambda.status(id)

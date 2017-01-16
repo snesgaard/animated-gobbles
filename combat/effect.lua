@@ -9,6 +9,14 @@ function _effect_generator.damage(value)
   end
 end
 
+-- TODO: Refactor when each faction get their own action pool
+function _effect_generator.action(value)
+  return function(arg)
+    --local id = arg.target
+    combat_engine.data.action_point = combat_engine.data.action_point + value
+  end
+end
+
 function _effect_generator.heal(value)
   return function(arg)
     local id = arg.target

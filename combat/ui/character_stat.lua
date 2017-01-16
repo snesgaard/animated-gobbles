@@ -142,14 +142,27 @@ local function card_list_control(parent, card_list, opt, x, y, w, h)
     for _, card in pairs(card_list) do
       if card_state[card].hovered then
         local ch = gamedata.spatial.height[card] * gamedata.spatial.flip[card]
-        gamedata.spatial.y[card] = y - ch * 0.5
+        --gamedata.spatial.y[card] = y - ch * 0.5
+        local cy = y - ch * 0.5
+        local cx
         if opt.align == "left" then
-          gamedata.spatial.x[card] = x + w
+          --gamedata.spatial.x[card] = x + w
+          cx = x + w
         elseif opt.align == "right" then
           local cw = gamedata.spatial.width[card] * gamedata.spatial.face[card]
-          gamedata.spatial.x[card] = x - cw - w
+          --gamedata.spatial.x[card] = x - cw - w
+          cx = x - cw - w
         end
-        cards.render(card)
+        --cards.render(card)
+        common.screen_suit:Button(
+          card, {
+            draw = function(...)
+              gfx.setColor(255, 255, 255)
+              cards.suit_draw(...)
+            end,
+          }, cx, cy, cards.DEFINE.WIDTH * 4,
+          cards.DEFINE.HEIGHT * 4
+        )
       end
     end
     parent, card_list = coroutine.yield()

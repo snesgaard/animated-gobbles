@@ -1,11 +1,24 @@
 require "math"
 
+local DEFINE = {
+  E = math.exp(1)
+}
+
 util = {}
 function map(f, t)
   local r = {}
   for key, val in pairs(t) do
     r[key] = f(val)
   end
+  return r
+end
+
+function range(min, max)
+  if not max then
+    return range(1, min)
+  end
+  local r = {}
+  for i = min, max do table.insert(r, i) end
   return r
 end
 
@@ -87,6 +100,42 @@ function flip(t)
   local res = {}
   for k, v in pairs(t) do res[v] = k end
   return res
+end
+
+-- Linear interpolant
+function util.lerp(dt, time, f)
+  local t = time
+  while t > 0 do
+    f(1 - t / time) -- Call with interpolant
+    dt = coroutine.yield()
+    t = t - dt
+  end
+  -- Call to signal end of lerp
+  f(1)
+end
+-- Exponential interpolant
+function util.xerp(dt, time, f)
+  local _min = 2
+  local _max = 7
+  local min = math.exp(_min)
+  local max = math.exp(_max)
+  local s = 1.0 / (max - min)
+  local function g(t)
+    return f((math.exp(_max * t + _min * (1 - t)) - min) * s)
+  end
+  return util.lerp(dt, time, g)
+end
+-- Logarithmic interpolation
+function util.gerp(dt, time, f)
+  local _min = 1
+  local _max = 30
+  local min = math.log(_min)
+  local max = math.log(_max)
+  local s = 1.0 / (max - min)
+  local function g(t)
+    return f((math.log(_max * t + _min * (1 - t)) - min) * s)
+  end
+  return util.lerp(dt, time, g)
 end
 
 function util.equal(...)

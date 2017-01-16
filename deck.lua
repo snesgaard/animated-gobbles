@@ -33,6 +33,7 @@ function deck.remove(id, pile, index)
 end
 
 function deck.peek(id, pile, index)
+  if not index then return end
   local _pool = pile[id]
   if not _pool then
     error(pile .. " was not found in deck")

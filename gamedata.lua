@@ -101,6 +101,7 @@ gamedata = createresource({
     image = {},
     text = {},
     effect = {},
+    react = {},
   }
 })
 

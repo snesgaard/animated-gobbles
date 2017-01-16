@@ -49,13 +49,19 @@ function loader.card_visual()
   ]]
   RESOURCE.SHADER.CARD_FRAME = gfx.newShader(_shader_txt)
 
-  RESOURCE.FONT.ICON = gfx.newFont(30)
-  RESOURCE.FONT.NAME_LARGE = gfx.newFont(20)
-  RESOURCE.FONT.NAME_MEDIUM = gfx.newFont(15)
-  RESOURCE.FONT.NAME_SMALL = gfx.newFont(9)
+  local font = 'resource/fonts/nonfree/squares.ttf'
 
-  RESOURCE.FONT.CARD_TEXT = gfx.newFont(12)
-  RESOURCE.FONT.CARD_TEXT:setFilter("linear", "linear", 3)
+  RESOURCE.FONT.ICON = gfx.newFont(font, 30)
+  RESOURCE.FONT.NAME_LARGE = gfx.newFont(font, 18)
+  RESOURCE.FONT.NAME_MEDIUM = gfx.newFont(font, 15)
+  RESOURCE.FONT.NAME_SMALL = gfx.newFont(font, 9)
+
+  RESOURCE.FONT.CARD_TEXT = gfx.newFont(font, 14)
+
+  for _, f in pairs(RESOURCE.FONT) do
+    f:setFilter("linear", "linear", 3)
+  end
+  --RESOURCE.FONT.CARD_TEXT
 end
 
 local function vertical_offset(valign, font, h)
@@ -73,7 +79,7 @@ local function draw_text(text, opt, x, y, w, h, rot, sx, sy)
   sx = sx or 1
   sy = sy or 1
   love.graphics.setFont(opt.font)
-  y = y + vertical_offset(opt.valign, opt.font, h) * sx
+  y = y + vertical_offset(opt.valign, opt.font, h) * sy
   local theme = opt.color
   local r, g, b, a = gfx.getColor()
   local tr, tg, tb = unpack(theme.normal.fg or {0, 0, 0})
@@ -117,10 +123,12 @@ function cards.suit_draw(cardid, opt, x, y, w, h)
   local name = gamedata.card.name[cardid]
 
   local name_font = RESOURCE.FONT.NAME_LARGE
+  local name_offset = 0
   if string.len(name) > 13 then
     name_font = RESOURCE.FONT.NAME_SMALL
   elseif string.len(name) > 8 then
     name_font = RESOURCE.FONT.NAME_MEDIUM
+    name_offset = 0.5
   end
 
   --gfx.setColor(255, 255, 255)
@@ -131,7 +139,7 @@ function cards.suit_draw(cardid, opt, x, y, w, h)
   local text_scale = sx / 4.0
   draw_text(
     name, {color = theme.card_text, font = name_font, valign = "top"},
-    x + 7 * sx, y + 1 * sy, 35 * sx, 5 * sy, 0, text_scale, text_scale
+    x + 7 * sx, y + name_offset * sy, 35 * sx, 5 * sy, 0, text_scale, text_scale
   )
   draw_text(
     text,
@@ -141,7 +149,7 @@ function cards.suit_draw(cardid, opt, x, y, w, h)
   draw_text(
     "" .. cost,
     {color = theme.card_text, font = RESOURCE.FONT.ICON, valign = "top"},
-    x - 1.75 * sx, y - 2.75 * sy, 7 * sx, 7 * sx, 0, text_scale, text_scale
+    x - 2 * sx, y - 4.25 * sy, 7 * sx, 7 * sx, 0, text_scale, text_scale
   )
 end
 
@@ -149,7 +157,79 @@ function cards.suit_highlight(cardid, opt, x, y, w, h)
   local r, g, b, a = gfx.getColor()
   local tr, tg, tb, ta = unpack(opt.highlight or {255, 255, 255, 255})
   gfx.setColor(r * tr / 255, g * tg / 255, b * tb / 255, a * ta / 255)
-  gfx.setLineWidth(12)
+  local s = w / DEFINE.WIDTH
+  gfx.setLineWidth(4 * s)
   gfx.rectangle("line", x + 1, y + 1, w - 2, h - 2, 10, 10)
   gfx.setColor(r, g, b, a)
+end
+
+-- Here goes some more high level functions
+local gfx = love.graphics
+local shader_str = [[
+  vec4 effect( vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords)
+  {
+      vec4 texcolor = Texel(texture, texture_coords);
+      if (texcolor.a < 0.05) discard;
+      return texcolor * color;
+  }
+]]
+local particle_im = gfx.newImage("resource/particle/circle.png")
+local card_shader = gfx.newShader(shader_str)
+
+local function draw_card_fade(cardid, opt, x, y, w, h)
+  gfx.stencil(function()
+    gfx.setColorMask(true, true, true, true)
+    gfx.setColor(255, 255, 255, 255)
+    gfx.setShader(card_shader)
+    cards.suit_draw(cardid, opt, x, y, w, h)
+  end, "replace", 1)
+  gfx.setShader()
+  gfx.setStencilTest("equal", 1)
+  gfx.setColor(unpack(opt.color))
+  gfx.rectangle("fill", x - 200, y - 200, w + 400, h + 400)
+  gfx.setStencilTest()
+end
+
+local function draw_card_particle(cardid, opt, x, y, w, h)
+  local pt = opt.particle
+  gfx.setColor(unpack(opt.color))
+  gfx.draw(pt, x, y)
+end
+
+function cards.animate_fade(dt, cardid, _suit, x, y, s)
+  local fade_time = 0.2
+  local pt = gfx.newParticleSystem(particle_im, 30)
+  local time = fade_time
+  local opt = {particle = pt, color = {80, 80, 200, 255}, draw = draw_card_fade}
+
+  s = s or 4
+  local w = cards.DEFINE.WIDTH * s
+  local h = cards.DEFINE.HEIGHT * s
+
+  local function get_interpolant(t) return (fade_time - t) / fade_time end
+
+  while time - dt > 0 do
+    time = time - dt
+    local t = get_interpolant(time)
+    opt.color[4] = 200 * t
+    _suit:Button(cardid, opt, x, y, w, h)
+    dt = coroutine.yield()
+  end
+
+  opt.draw = draw_card_particle
+  opt.color[4] = 255
+  pt:setAreaSpread("uniform", w * 0.4, h * 0.4)
+  pt:setPosition(w * 0.5, h * 0.5)
+  pt:setParticleLifetime(0.5)
+  pt:setSpread(math.pi * 2)
+  pt:setSpeed(400)
+  pt:setSizes(10)
+  pt:setLinearDamping(4)
+  pt:setColors(255, 255, 255, 255, 255, 255, 255, 0)
+  pt:emit(30)
+  while pt:getCount() > 0 do
+    pt:update(dt)
+    _suit:Button(cardid, opt, x, y, w, h)
+    dt = coroutine.yield()
+  end
 end
