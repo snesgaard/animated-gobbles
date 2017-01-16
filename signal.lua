@@ -148,6 +148,10 @@ local token_table = {}
 local sig_buffer = {}
 local token_buffer = {}
 
+local signal_table = {}
+local buffer_table = {}
+local order_signal_table = {}
+
 local function fetch_entry(tab, id)
   local entry = tab[id]
   if not entry then
@@ -163,24 +167,30 @@ function signal.type(id)
   local builders = {}
   table.insert(builders, function(next)
     local token = {}
-    return function()
+    return function(deactive)
+      --[[
       local sig_entry = fetch_entry(sig_table, id)
       local sig_buf = fetch_entry(sig_buffer, id)
       local token_buf = fetch_entry(token_buffer, id)
-      --local cache = fetch_cache(id)
-      --local ub = upper_bracket[id] or {}
-      --ub[token] = next
-      --upper_bracket[id] = ub
+      Previous working version
       if not token_table[token] then
         token_table[token] = true
         table.insert(sig_entry, next)
       end
       table.insert(sig_buf, next)
       table.insert(token_buf, token)
-      --for _, sig in pairs(cache) do
-      --  next(unpack(sig))
-      --end
-      --table.insert(entry, next)
+      ]]--
+      if not deactive then
+        local entry = fetch_entry(signal_table, id)
+        entry[next] = entry[next] or love.timer.getTime()
+      else
+        print("removing", id)
+        local s_entry = fetch_entry(signal_table, id)
+        local b_entry = fetch_entry(signal_table, id)
+        s_entry[next] = nil
+        b_entry[next] = nil
+      end
+      order_signal_table[id] = nil
     end
   end)
   return _branch(builders)
@@ -221,8 +231,8 @@ function signal.merge(...)
         error("Unsupported type:", t)
       end
     end, parents)
-    return function()
-      for _, t in pairs(tokens) do t() end
+    return function(deactive)
+      for _, t in pairs(tokens) do t(deactive) end
     end
   end)
   return _branch(builders)
@@ -280,17 +290,39 @@ function signal.zip(...)
   return _branch(builders)
 end
 
+local function order_call_table(t)
+  local r = {}
+  for next, _ in pairs(t) do
+    r[#r + 1] = next
+  end
+  table.sort(r, function(a, b) return t[a] < t[b] end)
+  return r
+end
+
 function signal.emit(id, ...)
-  local entries = fetch_entry(sig_table, id)
-  for _, react in pairs(entries) do react(...) end
+  --local entries = fetch_entry(signal_table, id)
+  local entries = order_signal_table[id] or order_call_table(
+    fetch_entry(signal_table, id)
+  )
+  order_signal_table[id] = entries
+  for i = 1, #entries do
+    local react = entries[i]
+    react(...)
+  end
 end
 
 -- Basically the same as emit
 -- Except that it gathers the return values of signal listeners
 function signal.echo(id, ...)
-  local entries = fetch_entry(sig_table, id)
+  --local entries = fetch_entry(signal_table, id)
+  local entries = order_signal_table[id] or order_call_table(
+    fetch_entry(signal_table, id)
+  )
+  order_signal_table[id] = entries
+
   local val = {}
-  for _, react in pairs(entries) do
+  for i = 1, #entries do
+    local react = entries[i]
     local r = {react(...)}
     if r[1] ~= nil then table.insert(val, r) end
   end
@@ -298,20 +330,15 @@ function signal.echo(id, ...)
 end
 
 function signal.update()
-  sig_table = {}
-  token_table = {}
-
-  for id, sig_buf in pairs(sig_buffer) do
-    local entry = fetch_entry(sig_table, id)
-    for _, s in pairs(sig_buf) do
-      table.insert(entry, s)
+  local prev_signal_table = signal_table
+  signal_table = {}
+  order_signal_table = {}
+  for type, type_table in pairs(buffer_table) do
+    local entry = {}
+    for next, stamp in pairs(type_table) do
+      entry[next] = stamp
     end
+    signal_table[type] = entry
   end
-  for id, tok_buf in pairs(token_buffer) do
-    for _, t in pairs(tok_buf) do
-      token_table[t] = true
-    end
-  end
-  sig_buffer = {}
-  token_buffer = {}
+  buffer_table = signal_table
 end

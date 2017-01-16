@@ -38,7 +38,7 @@ function card_data.react(cardid, userid)
         gamedata.card.text[cardid] = txt
       end
     end)
-  res.reset = signal.merge(event.core.card.play,event.core.card.draw)
+  res.reset = signal.merge(event.core.card.play, event.core.card.draw)
     .filter(function(_userid, _cardid) return _cardid == cardid end)
     .listen(function()
       local data = gamedata.card.effect[cardid]

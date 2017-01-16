@@ -166,6 +166,13 @@ function combat.parse_card_play(id, pile, index, control)
 
   deck.remove(id, pile, index)
   deck.insert(id, gamedata.deck.discard, cardid)
+  -- Remove callbacks
+  local react = gamedata.card.react[cardid]
+  if react then
+    for key, r in pairs(react) do
+      r(true)
+    end
+  end
   local cost = gamedata.card.cost[cardid]
   combat_engine.data.action_point = combat_engine.data.action_point - cost
   --signal.echo(event.core.card.begin, id, cardid)

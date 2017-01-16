@@ -118,7 +118,7 @@ function cards.suit_draw(cardid, opt, x, y, w, h)
   local sy = h / DEFINE.HEIGHT
   local sheet = RESOURCE.SHEET
   local image = gamedata.card.image[cardid] or "potato"
-  local text = gamedata.card.text[cardid]
+  local text = opt.text or gamedata.card.text[cardid]
   local cost = gamedata.card.cost[cardid]
   local name = gamedata.card.name[cardid]
 
@@ -196,11 +196,15 @@ local function draw_card_particle(cardid, opt, x, y, w, h)
   gfx.draw(pt, x, y)
 end
 
-function cards.animate_fade(dt, cardid, _suit, x, y, s)
+function cards.animate_fade(dt, cardid, _suit, x, y, s, text)
   local fade_time = 0.2
   local pt = gfx.newParticleSystem(particle_im, 30)
   local time = fade_time
-  local opt = {particle = pt, color = {80, 80, 200, 255}, draw = draw_card_fade}
+  --local text = gamedata.card.text[cardid]
+  local opt = {
+    particle = pt, color = {80, 80, 200, 255}, draw = draw_card_fade,
+    text = text
+  }
 
   s = s or 4
   local w = cards.DEFINE.WIDTH * s

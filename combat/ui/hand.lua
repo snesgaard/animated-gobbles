@@ -230,9 +230,10 @@ local function _handle_card_play(state, userid, cardid)
   local x = state.x[cardid]
   local y = state.y[cardid]
   local s = state.scale[cardid]
+  local text = gamedata.card.text[cardid]
   state.scale[cardid] = nil
   state.selected = nil
-  state.draw_pool:run(cardid, cards.animate_fade, cardid, DEFINE.suit, x, y, s)
+  state.draw_pool:run(cardid, cards.animate_fade, cardid, DEFINE.suit, x, y, s, text)
 
   local hand = gamedata.deck.hand[userid]
   for i, cid in pairs(hand) do
@@ -341,7 +342,7 @@ function process_state.default(dt, userid, state)
           return DEFINE.suit:Button(
             cardid, {
               draw = draw_card_with_highlight,
-              highlight = state.highlight[cardid]
+              highlight = state.highlight[cardid],
             }, state.x[cardid], state.y[cardid],
             cards.DEFINE.WIDTH * state.scale[cardid],
             cards.DEFINE.HEIGHT * state.scale[cardid]
