@@ -84,6 +84,7 @@ function love.load()
   loader.testbox()
   loader.cards()
 	loader.card_visual()
+	loader.buff()
   --loader.blast()
   --love.event.quit()
   --initresource(gamedata, init.lantern_A, 300, -80)
@@ -110,18 +111,28 @@ function love.load()
   table.insert(ally, initresource(gamedata, init.engineer, 145, -133.5))
   local id = ally[1]
   local card_collection = {}
-  for i = 1, 14 do table.insert(card_collection, cards.potato) end
-	for i = 1, 14 do table.insert(card_collection, cards.dualpotato) end
+  for i = 1, 5 do table.insert(card_collection, cards.potion) end
+	for i = 1, 5 do table.insert(card_collection, cards.eerie_injection) end
   for i = 1, 2 do table.insert(card_collection, cards.evil_potato) end
+	for i = 1, 5 do table.insert(card_collection, cards.invasive_surgery) end
+	local rng = love.math.random
+	for _, tab in pairs(gamedata.combat.buff) do
+		tab[id] = rng(-9, 9)
+		if tab[id] == 0 or true then tab[id] = nil end
+	end
 	-- print(cards.potato, cards.evil_potato)
   gamedata.combat.collection[id] = card_collection
   table.insert(ally, initresource(gamedata, init.witch, 95, -133.5))
   id = ally[2]
   local card_collection = {}
-  for i = 1, 10 do table.insert(card_collection, cards.potato) end
-  for i = 1, 10 do table.insert(card_collection, cards.evil_potato) end
-	for i = 1, 10 do table.insert(card_collection, cards.fury) end
+  --for i = 1, 5 do table.insert(card_collection, cards.potato) end
+  --for i = 1, 5 do table.insert(card_collection, cards.evil_potato) end
+	for i = 1, 5 do table.insert(card_collection, cards.bulwark) end
+	for i = 1, 5 do table.insert(card_collection, cards.fury) end
+	for i = 1, 5 do table.insert(card_collection, cards.insight) end
   gamedata.combat.collection[id] = card_collection
+
+
   table.insert(enemy, initresource(gamedata, init.testbox, 260, -145))
 	local card_collection = {}
 	id = enemy[1]

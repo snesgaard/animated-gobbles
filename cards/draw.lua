@@ -113,18 +113,36 @@ local function card_back_render(image, opt, x, y, w, h)
   gfx.setStencilTest("equal", 0)
 end
 
+local card_visual_init = {}
+function card_visual_init.number(cardid)
+  local image = gamedata.card.image[cardid] or "potato"
+  local text = gamedata.card.text[cardid]
+  local cost = gamedata.card.cost[cardid]
+  local name = gamedata.card.name[cardid]
+
+  return image, text, cost, name
+end
+function card_visual_init.table(representation)
+  local image = representation.image
+  local text = representation.text
+  local cost = representation.cost
+  local name = representation.name
+
+  return image, text, cost, name
+end
+
 function cards.suit_draw(cardid, opt, x, y, w, h)
   local sx = w / DEFINE.WIDTH
   local sy = h / DEFINE.HEIGHT
   local sheet = RESOURCE.SHEET
-  local image = gamedata.card.image[cardid] or "potato"
-  local text = opt.text or gamedata.card.text[cardid]
-  local cost = gamedata.card.cost[cardid]
-  local name = gamedata.card.name[cardid]
+
+  local init = card_visual_init[type(cardid)]
+  local image, text, cost, name = init(cardid)
+
 
   local name_font = RESOURCE.FONT.NAME_LARGE
   local name_offset = 0
-  if string.len(name) > 13 then
+  if string.len(name) > 17 then
     name_font = RESOURCE.FONT.NAME_SMALL
   elseif string.len(name) > 8 then
     name_font = RESOURCE.FONT.NAME_MEDIUM
@@ -132,6 +150,9 @@ function cards.suit_draw(cardid, opt, x, y, w, h)
   end
 
   --gfx.setColor(255, 255, 255)
+  gfx.setColor(12, 95, 132, 255)
+  gfx.rectangle("fill", x + 3 * sx, y + 8 * sy, 44 * sx, 29 * sy)
+  gfx.setColor(255, 255, 255)
   gfx.draw(sheet, get_quad(image), x + 3 * sx, y + 8 * sy, 0, sx, sy)
   gfx.draw(sheet, get_quad("frame"), x, y, 0, sx, sy)
   gfx.draw(sheet, get_quad("cost_icon"), x - 3 * sx, y - 3 * sy, 0, sx, sy)

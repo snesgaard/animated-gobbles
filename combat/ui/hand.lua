@@ -226,14 +226,17 @@ local function cost_hightlight(cardid)
   end
 end
 
-local function _handle_card_play(state, userid, cardid)
+local function _handle_card_play(state, userid, cardid, target, representation)
   local x = state.x[cardid]
   local y = state.y[cardid]
   local s = state.scale[cardid]
   local text = gamedata.card.text[cardid]
   state.scale[cardid] = nil
   state.selected = nil
-  state.draw_pool:run(cardid, cards.animate_fade, cardid, DEFINE.suit, x, y, s, text)
+  state.draw_pool:run(
+    cardid, cards.animate_fade, representation or cardid, DEFINE.suit, x, y, s,
+    text
+  )
 
   local hand = gamedata.deck.hand[userid]
   for i, cid in pairs(hand) do
@@ -359,10 +362,9 @@ function process_state.default(dt, userid, state)
       end
     end
     local hit_card = search_for_hit(cardstate)
-    local cardid = deck.peek(userid, gamedata.deck.hand, hit_card)
-    local cost = gamedata.card.cost[cardid]
-    if hit_card and cost <= combat_engine.data.action_point  and not state.selected then
+    if hit_card and not state.selected then
       state.selected = hit_card
+      local cardid = deck.peek(userid, gamedata.deck.hand, hit_card)
       state.highlight = {[cardid] = {0, 0, 255, 200}}
       local ix, iy, is = state.x[cardid], state.y[cardid], state.scale[cardid]
       local fx, fy, fs = DEFINE.PLAY_X, DEFINE.PLAY_Y, DEFINE.PLAY_SCALE

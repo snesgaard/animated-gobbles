@@ -119,8 +119,10 @@ function cards.init(gamedata, id, card_data)
 
   gamedata.card.text[id] = cards.compile_text(gamedata.card.effect[id])
 
-  if card_data.react then
-    gamedata.card.react[id] = card_data.react(id)
+  --TODO Insert userid as an arguemnt
+  for _, key in pairs({"hand", "discard", "draw"}) do
+    local f = card_data[key]
+    if f then gamedata.card.react[key][id] = f(id) end
   end
 end
 
@@ -193,7 +195,6 @@ function cards.suit_draw(cardid, opt, x, y, w, h)
   local cost = gamedata.card.cost[id]
   local sx = w / DEFINE.WIDTH
   local sy = h / DEFINE.HEIGHT
-
 end
 
 function cards.render(id, highlight, x, y)
@@ -251,9 +252,24 @@ function cards.draw()
   card_suit:draw()
 end
 
+function cards.create_representation(cardid)
+  local _card = gamedata.card
+  return {
+    text = _card.text[cardid],
+    image = _card.image[cardid],
+    name = _card.name[cardid],
+    cost = _card.cost[cardid],
+  }
+end
+
 require "cards/draw"
 
 require "cards/potato"
 require "cards/evil_potato"
 require "cards/dual_potato"
 require "cards/fury"
+require "cards/invasive_surgery"
+require "cards/eerie_injection"
+require "cards/potion"
+require "cards/insight"
+require "cards/bulwark"

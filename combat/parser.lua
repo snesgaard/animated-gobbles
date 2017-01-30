@@ -160,19 +160,20 @@ function combat.parse_card_play(id, pile, index, control)
   local cardid = deck.peek(id, pile, index)
   local effects = gamedata.card.effect[cardid]
   local data = effects.play
+  if not combat_engine.can_play(cardid) then
+    return
+  end
+
+  local representation = cards.create_representation(cardid)
 
   local arg, all_effects = parse_play(id, data, control)
 
-
   deck.remove(id, pile, index)
   deck.insert(id, gamedata.deck.discard, cardid)
-  -- Remove callbacks
-  local react = gamedata.card.react[cardid]
-  if react then
-    for key, r in pairs(react) do
-      r(true)
-    end
-  end
+  -- Remove callbacks from hand
+  map(function(r) r(true) end, gamedata.card.react.hand[cardid] or {})
+  -- Add callbacks from discard
+  map(function(r) r() end, gamedata.card.react.discard[cardid] or {})
   local cost = gamedata.card.cost[cardid]
   combat_engine.data.action_point = combat_engine.data.action_point - cost
   --signal.echo(event.core.card.begin, id, cardid)
@@ -181,13 +182,13 @@ function combat.parse_card_play(id, pile, index, control)
 
   all_viz.play = {
     {
-      effect = signal.echo(event.core.card.play, id, cardid, arg.target),
+      effect = signal.echo(event.core.card.play, id, cardid, arg.target, representation),
       arg = {user = id, target = id}
     }
   }
 
   local anime = animation_builder(id, data.visual, all_viz)
-  combat_engine.add_event(card_seq, cardid, anime)
+  combat_engine.add_event(card_seq, representation, anime)
 end
 
 function combat.parse_play(id, data, control)

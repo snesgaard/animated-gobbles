@@ -184,7 +184,6 @@ function signal.type(id)
         local entry = fetch_entry(signal_table, id)
         entry[next] = entry[next] or love.timer.getTime()
       else
-        print("removing", id)
         local s_entry = fetch_entry(signal_table, id)
         local b_entry = fetch_entry(signal_table, id)
         s_entry[next] = nil

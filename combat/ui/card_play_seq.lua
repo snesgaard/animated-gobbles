@@ -42,7 +42,7 @@ end
 
 
 
-return function(dt, cardid, seq)
+return function(dt, cardid, seq, card_presentation)
   local card_proc = "card"
   local seq_proc = "seq"
   local state = {

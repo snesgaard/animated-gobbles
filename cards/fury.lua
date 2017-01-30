@@ -27,7 +27,7 @@ local card_data = {
   },
 }
 
-function card_data.react(cardid, userid)
+function card_data.hand(cardid, userid)
   local res = {}
   res.damage = signal.type(event.core.character.damage)
     .listen(function()
@@ -38,6 +38,11 @@ function card_data.react(cardid, userid)
         gamedata.card.text[cardid] = txt
       end
     end)
+  return res
+end
+
+function card_data.discard(cardid, userid)
+  local res = {}
   res.reset = signal.merge(event.core.card.play, event.core.card.draw)
     .filter(function(_userid, _cardid) return _cardid == cardid end)
     .listen(function()
@@ -48,6 +53,8 @@ function card_data.react(cardid, userid)
     end)
   return res
 end
+
+card_data.draw = card_data.discard
 
 function card_data.play.text_compiler(data)
   local dmg = data.single.damage

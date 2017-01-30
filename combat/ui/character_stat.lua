@@ -2,6 +2,7 @@ local event = require "combat/event"
 local theme = require "combat/ui/theme"
 local common = require "combat/ui/common"
 local menu = require "combat/ui/menu"
+local buff_ui = require "combat/ui/buff"
 
 local screen_suit = common.screen_suit
 
@@ -12,6 +13,12 @@ local DEFINE = {
   margin = 5,
   deck_width = 65,
   deck_aspect = 1.4
+}
+
+local RESOURCE = {
+  SHEET = {},
+  ANIMATION = {},
+  FONT = {}
 }
 
 local function health_bar_draw(_, opt, x, y, w, h)
@@ -66,6 +73,7 @@ local function alpha_sort_card(card_list)
   end)
   return card_list
 end
+
 
 local function initialize(userid)
   local pick_theme = {
@@ -123,7 +131,8 @@ local function initialize(userid)
       discard = alpha_sort_card(gamedata.deck.discard[userid]),
       draw = alpha_sort_card(gamedata.deck.draw[userid]),
     },
-    menu_draw
+    menu_draw,
+    pool = lambda_pool.new()
   }
   return state
 end
@@ -174,10 +183,10 @@ return function(dt, userid)
   local function is_user(id) return id == userid end
   local state = initialize(userid)
   local tokens = {}
-  tokens.damage = signal.type(event.core.character.damage)
+  tokens.damage = signal.merge(event.core.character.damage, event.core.character.heal)
     .filter(is_user)
     .listen(function(id)
-      local dmg = gamedata.combat.damage[id]
+      local dmg = gamedata.combat.damage[id] or 0
       return function()
         state.opt.health_bar.damage = dmg
       end
@@ -202,6 +211,10 @@ return function(dt, userid)
   local discard_co = coroutine.wrap(card_list_control)
   local draw_co = coroutine.wrap(card_list_control)
 
+  state.pool:run(
+    "buff", buff_ui, state.x - DEFINE.screen_width * 0.5, DEFINE.screen_y - 40,
+    DEFINE.screen_width, userid
+  )
   while true do
     for _, t in pairs(tokens) do t() end
     screen_suit.layout:reset(
@@ -251,15 +264,18 @@ return function(dt, userid)
       "" .. health, state.opt.health_text,
       screen_suit.layout:col(health_height, DEFINE.screen_height)
     )
-
+    screen_suit.layout:reset(
+      state.x - DEFINE.screen_width * 0.5 + 5, DEFINE.screen_y - 30, 12, 5
+    )
+    state.pool:update(dt)
     draw_co(
       _draw_state, state.card.draw, state.opt.draw_list,
-      cx - deck_margin - 10, cy + deck_height * 0.5, 100, 20
+      cx - deck_margin - 10, cy + deck_height * 0.5, 200, 20
     )
     discard_co(
       _discard_state, state.card.discard, state.opt.discard_list,
       state.x - DEFINE.screen_width * 0.5 + deck_margin + 10,
-      cy + deck_height * 0.5, 100, 20
+      cy + deck_height * 0.5, 200, 20
     )
     --[[
     if _draw_state.hovered and #state.card.draw > 0 then
@@ -276,6 +292,6 @@ return function(dt, userid)
       )
     end
     --]]
-    coroutine.yield()
+    dt = coroutine.yield()
   end
 end

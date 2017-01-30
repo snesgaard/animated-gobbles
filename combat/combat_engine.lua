@@ -135,6 +135,11 @@ local DEFINE = {
   }
 }
 
+function combat_engine.can_play(cardid)
+  local cost = gamedata.card.cost[cardid]
+  return cost <= combat_engine.data.action_point
+end
+
 function combat_engine.play_card(userid, pile, index)
   local sig = {}
   local play = coroutine.wrap(function()
@@ -1002,11 +1007,16 @@ function combat_engine.update(dt)
     end
   end
   -- Fetch reactions from all card currently in hand
-  for _, id in pairs(combat_engine.data.party) do
-    for _, cardid in pairs(gamedata.deck.hand[id]) do
-      local r = gamedata.card.react[cardid]
-      for _, f in pairs(r or {}) do
-        f()
+  -- TODO : do tha same for the enemires
+  local all = concatenate(combat_engine.data.party, combat_engine.data.enemy)
+  for _, key in pairs({"hand", "discard", "draw"}) do
+    local pile = gamedata.deck[key]
+    local react = gamedata.card.react[key]
+    for _, id in pairs(all) do
+      for _, card in pairs(pile[id]) do
+        for name, r in pairs(react[card] or {}) do
+          r()
+        end
       end
     end
   end

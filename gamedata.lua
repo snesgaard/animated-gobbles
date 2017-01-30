@@ -83,6 +83,15 @@ gamedata = createresource({
     attack = {},
     invincibility = {},
     collection = {},
+    buff = {
+      power = {}, -- Modifies damage
+      armor = {}, -- Modifies taken damage
+      regen = {}, -- Heals/damage at the end of your turn
+      bleed = {}, -- Heals/damage everytime you take an action
+      charge = {}, -- Deals 2.5 damage on next action
+      shield = {}, -- Blocks or doubles an attack
+      crit = {}, -- Change to increase damage or change to miss
+    }
   },
   tag = {
     point_light = {},
@@ -101,7 +110,11 @@ gamedata = createresource({
     image = {},
     text = {},
     effect = {},
-    react = {},
+    react = {
+      hand = {},
+      discard = {},
+      draw = {}
+    },
   }
 })
 

@@ -16,6 +16,11 @@ local DEFINE = {
       normal = {
         bg = {255, 255, 255}, fg = theme.health.low
       }
+    },
+    HEAL = {
+      normal = {
+        bg = {255, 255, 255}, fg = theme.health.high
+      }
     }
   }
 }
@@ -64,6 +69,16 @@ return function(dt)
           draw = draw.damage,
           color = DEFINE.THEME.DAMAGE,
           dmg = damage,
+          font = common.font.s35
+        }
+      end),
+    signal.type(event.core.character.heal)
+      .map(function(id, heal)
+        return id, {
+          align = "center",
+          draw = draw.damage,
+          color = DEFINE.THEME.HEAL,
+          dmg = heal,
           font = common.font.s35
         }
       end)
