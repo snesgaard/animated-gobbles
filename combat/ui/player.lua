@@ -3,6 +3,7 @@ local hand_ui = require "combat/ui/hand"
 local theme = require "combat/ui/theme"
 local common = require "combat/ui/common"
 local menu = require "combat/ui/menu"
+local pick_single = require "combat/ui/pick_single_target"
 
 local player_suit = common.screen_suit
 
@@ -39,7 +40,7 @@ local function draw()
   player_suit:draw()
 end
 
-return function(dt, player_list, state)
+return function(dt, engine, player_list, enemy_list, state)
   state = state or initialize(player_list)
   --draw_engine.ui.screen.player_ui = draw
   local tokens = {}
@@ -74,9 +75,12 @@ return function(dt, player_list, state)
           confirm_cast = function()
             combat_engine.confirm_cast(id, pile, index)
           end,
-          pick_single_target = combat_engine.pick_single_target
+          pick_single_target = function()
+            return pick_single(dt, player_list, enemy_list)
+          end
         }
-        combat.parse_card_play(id, pile, index, control)
+        local f = combat.parse_card_play(engine, id, pile, index, control)
+        engine.add_visual_seq(f)
       end
       lambda.run(
         state.card_play_co, f, state.selected_player, gamedata.deck.hand, card

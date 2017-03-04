@@ -42,9 +42,10 @@ end
 
 
 
-return function(dt, cardid, seq, card_presentation)
+return function(dt, cardid, seq, ...)
   local card_proc = "card"
   local seq_proc = "seq"
+  local seq_args = {...}
   local state = {
     terminate = false,
     pool = lambda_pool.new()
@@ -73,7 +74,7 @@ return function(dt, cardid, seq, card_presentation)
     state.terminate = true
   end
   function proc.do_seq(dt)
-    seq(dt)
+    seq(dt, unpack(seq_args))
     state.pool:run(card_proc, proc.card_disappearance, cardid)
   end
 

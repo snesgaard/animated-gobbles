@@ -21,6 +21,9 @@ parser.add_argument(
     "-e", "--height", dest = "height", help = "height of animation frame"
 )
 parser.add_argument(
+    "-t", "--time", dest = "time", help = "Duration of the animation"
+)
+parser.add_argument(
     "path", metavar = "N", type = str, nargs='+',
     help = "Path to animation frame and hitbox files"
 )
@@ -38,6 +41,9 @@ if args.width is None:
 if args.height is None:
     print "Please provide frame height"
     sys.exit(-4)
+if args.time is None:
+    print "Please provide frame time"
+    sys.exit(-5)
 
 frame_shape = (int(args.height), int(args.width))
 
@@ -222,7 +228,8 @@ output_str += "\t\tvx = {0},\n".format(format2lua(str(vx_seq)))
 output_str += "\t\tframe_size = {0},\n".format(format2lua(str(frame_size_seq)))
 output_str += "\t\twidth = {0},\n".format(format2lua(str(width_seq)))
 output_str += "\t\theight = {0},\n".format(format2lua(str(height_seq)))
-output_str += "\t\thitbox = {{\n{0}\n\t\t}}\n".format(hitbox_str)
+output_str += "\t\thitbox = {{\n{0}\n\t\t}},\n".format(hitbox_str)
+output_str += "\t\ttime = {0},\n".format(args.time)
 output_str += "\t},\n"
 
 cv2.imwrite(args.frame, final_frame)

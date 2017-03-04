@@ -1,5 +1,6 @@
 local gfx = love.graphics
 local fun = require "modules/functional"
+local sprite = require "sprite"
 
 local atlas
 local anime = {}
@@ -105,7 +106,10 @@ function init.lantern_A(gd, id, x, y)
   local s = 0.0
   radiometry.color[id] = {243 * s, 156 * s, 151 * s}
   --radiometry.draw[id] = create_draw(id)
-  launch_seq{id, "lantern_A", 1.0}
+  --launch_seq{id, "lantern_A", 1.0}
+  -- HACK remove from global scoep later
+  --print("launch", atlas, anime)
+  --lambda.run(sprite.cycle, atlas, anime.latern_A, sprite.entity_center(id))
 
   gamedata.tag.point_light[id] = true
   gamedata.tag.background[id] = true

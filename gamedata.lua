@@ -71,6 +71,16 @@ gamedata = createresource({
     flip = {},
     ground = {},
   },
+  visual = {
+    idle = {},
+    throw = {},
+    cast = {},
+    melee = {},
+    shoot = {},
+    hurt = {},
+    move = {},
+    fall = {},
+  },
   radiometry = {
     color = {},
     intensity = {},
@@ -115,6 +125,7 @@ gamedata = createresource({
       discard = {},
       draw = {}
     },
+    animate = {},
   }
 })
 

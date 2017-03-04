@@ -1,16 +1,14 @@
 #partial_hitbox=$(addprefix ./build/, $(notdir $(frames:.png=.lua)))
-frames=$(addprefix ./build/, lantern_A.png box.png potion_red.png\
+frames=$(addprefix ./build/, shield.png power.png armor.png regen.png bleed.png charge.png crit.png\
 				)
 boundries=$(frames:.png=.lua)
 info=info.lua
 hitbox=hitbox.lua
 sheet=sheet.png
-nmap=normal.png
 
 script_dir=../../../utilities/
 texatlas_script=$(script_dir)/texatlas.py
 generate_script=$(script_dir)/generate_animation.py
-normal_script=$(script_dir)/normalmap.py
 
 all: create_build_dirs $(sheet) $(hitbox)
 
@@ -21,19 +19,15 @@ $(hitbox): $(boundries)
 
 $(sheet): $(frames)
 	@python $(texatlas_script) $^ -i $(info) -s $(sheet)
-	@python $(normal_script) $(sheet) $(nmap)
 
-./build/lantern_A.%: ./frame/lantern_A.png
-	@python $(generate_script) -w 16 -e 16 -t 1 -f $(@:.lua=.png) \
-	-l $(@:.png=.lua) $<
 
-./build/box.%: ./frame/box.png
-	@python $(generate_script) -w 32 -e 32 -t 1 -f $(@:.lua=.png) \
-	-l $(@:.png=.lua) $<
+./build/%.png: ./frame/%.png
+	@python $(generate_script) -w 20 -e 20 -f $(@:.lua=.png) -l $(@:.png=.lua) \
+	 														$<
 
-./build/potion_red.%: ./frame/potion_red.png
-	@python $(generate_script) -w 15 -e 15 -t 1 -f $(@:.lua=.png) \
-	-l $(@:.png=.lua) $<
+
+
+
 
 create_build_dirs:
 	@mkdir -p build

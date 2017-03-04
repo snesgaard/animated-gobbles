@@ -1,3 +1,5 @@
+local sprite = require "sprite"
+
 local atlas
 local anime = {}
 local frame_data = {}
@@ -9,9 +11,11 @@ local hitbox_hail = {
   [0xff00] = "ally",
 }
 
+local sheet
+
 function loader.engineer()
   -- Initialize animations
-  local data_dir = "resource/sprite/engineer"
+  local data_dir = "resource/sprite/gungoblin"
   local sheet = love.graphics.newImage(data_dir .. "/sheet.png")
   atlas = initresource(resource.atlas, function(at, id)
     local nmap = love.graphics.newImage(data_dir .. "/normal.png")
@@ -24,19 +28,13 @@ function loader.engineer()
   local index = require (data_dir .. "/info")
   frame_data = require (data_dir .. "/hitbox")
 
-  table.foreach(frame_data, function(key, val)
-    anime[key] = initresource(
-      resource.animation, animation.init, sheet, index[key], frame_data[key],
-      true
-    )
-  end)
-  table.foreach(frame_data, function(key, val)
-    frame_data[key].hitbox = collision_engine.batch_alloc_sequence(
-      frame_data[key].hitbox, hitbox_hail, hitbox_seek
-    )
-  end)
+
 
   draw_engine.foreground.engineer = draw_engine.create_atlas(atlas)
+
+  atlas, anime = sprite.load("resource/sprite/gungoblin")
+
+
 end
 
 function init.engineer(gd, id, x, y)
@@ -52,5 +50,12 @@ function init.engineer(gd, id, x, y)
 
   gd.combat.damage[id] = 5
   gd.functional.portrait[id] = function() return "engineer" end
-  animation.play{id, atlas, anime.combat_idle, 0.75}
+  --lambda.run(sprite.cycle, atlas, anime.idle, sprite.entity_center(id))
+  --animation.play{id, atlas, anime.idle, 1.0}
+  gamedata.visual.idle[id] = function(dt, ...)
+    return sprite.cycle(dt, atlas, anime.idle, ...)
+  end
+  gamedata.visual.throw[id] = function(dt, ...)
+    return sprite.once(dt, atlas, anime.throw, ...)
+  end
 end

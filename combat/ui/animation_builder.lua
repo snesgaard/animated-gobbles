@@ -1,3 +1,5 @@
+local sprite = require "sprite"
+
 local function visualizer(effects)
   return function()
     map(function(e) map(function(f) f() end, e) end, effects)
@@ -5,15 +7,18 @@ local function visualizer(effects)
 end
 
 local _animation_generator = {}
-function _animation_generator.default(_, _, all_effects)
+function _animation_generator.default(userid, _, all_effects, engine)
   return function(dt)
+    local throw_anime = gamedata.visual.throw[userid] or function() end
+    local idle_anime = gamedata.visual.idle[userid] or function() end
+    --engine.pool.sprite:stop(userid)
+    --throw_anime(dt, sprite.entity_center(userid))
     for name, named_effect in pairs(all_effects) do
       for _, effect in pairs(named_effect) do
-        for _, e in pairs(effect.effect) do
-          map(function(f) return f() end, e)
-        end
+        effect.callbacks()
       end
     end
+    --engine.pool.sprite:run(userid, idle_anime, sprite.entity_center(userid))
   end
 end
 
@@ -24,13 +29,13 @@ function _animation_generator.projectile(user, visual_data, all_effects)
   local function create_projectile(effect)
     projectiles:push(
       combat.visual.projectile(
-        user, effect.arg.target, visualizer(effect.effect),
+        user, effect.target, visualizer(effect.callbacks),
         visual_data
       )
     )
   end
   local function create_post(effect)
-    table.insert(post_impact, visualizer(effect.effect))
+    table.insert(post_impact, visualizer(effect.callbacks))
   end
 
   local projectile_handlers = {
@@ -69,7 +74,7 @@ function _animation_generator.projectile(user, visual_data, all_effects)
   --)
 end
 
-return function(userid, visual_data, effects)
+return function(userid, visual_data, effects, engine)
   local key = nil
   if not visual_data or not visual_data.animation then
     key = "default"
@@ -78,10 +83,10 @@ return function(userid, visual_data, effects)
   local gen = _animation_generator[type or "default"]
   local play = effects.play or {}
   effects.play = nil
-  local anime = gen(userid, visual_data, effects)
+  local anime = gen(userid, visual_data, effects, engine)
   return function(dt)
     for _, effect in pairs(play) do
-      for _, e in pairs(effect.effect) do
+      for _, e in pairs(effect.callbacks) do
         map(function(f) return f() end, e)
       end
     end

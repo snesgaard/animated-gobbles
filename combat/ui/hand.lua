@@ -57,159 +57,8 @@ local function hand_position(index)
   return 100 + index * 150, 750
 end
 
-local function initialize(userid)
-  local pool = lambda_pool.new()
-  local state = {
-    discarded_cards = {},
-    action_build = nil,
-    future_actions = queue.new(),
-    render_order = {},
-    can_click = {},
-    highlight = {},
-    highlight_func = highlight.pickable(combat_engine.data.action_point),
-    render = true,
-    pool = lambda_pool.new(),
-  }
-
-  local hand = gamedata.deck.hand[userid]
-  for i, card in ipairs(hand) do
-    local x, y = hand_position(i)
-    gamedata.spatial.x[card] = x
-    gamedata.spatial.y[card] = y
-    --state.highlight[card] = state.highlight_func(card)
-  end
-  state.render_order = sort_render_cards(hand)
-
-  return state
-end
-
 local process_state = {}
 
-function process_state.default(dt, userid, state)
-  local function is_user(id) return userid == id end
-
-  state = state or initialize(userid)
-
-  state.highlight_func = highlight.pickable(combat_engine.data.action_point)
-  state.highlight = {}
-  local hand = gamedata.deck.hand[userid]
-  for _, cid in pairs(hand) do
-    state.highlight[cid] = state.highlight_func(cid)
-  end
-
-  local tokens = {}
-  tokens.draw = signal.type(core.card.draw)
-    .filter(is_user)
-    .listen(function(user, cardid)
-      local hand = gamedata.deck.hand[user]
-      local x, y = hand_position(#hand)
-      state.highlight[cardid] = state.highlight_func(cardid)
-      gamedata.spatial.x[cardid] = 2000 + x * 0.25
-      gamedata.spatial.y[cardid] = 750
-      state.pool:queue(cardid, function(dt, x, y)
-        combat.visual.move_to(cardid, x, y, DEFINE.DRAW_SPEED, dt)
-      end, x, y)
-      state.render_order = sort_render_cards(
-        concatenate(hand, state.discarded_cards)
-      )
-    end)
-
-  while true do
-    DEFINE.suit:Button("eh", 0, 0, 10, 10)
-    for _, t in pairs(tokens) do t() end
-    state.pool:update(dt)
-    local cardstate = render_hand(
-      state.user, state.render_order, state.highlight, state.can_click
-    )
-    local hand = gamedata.deck.hand[userid]
-    local selected_card
-    for i = #hand, 1, -1 do
-      local card = hand[i]
-      if cardstate[card] and gamedata.card.cost[card] <= combat_engine.data.action_point then
-        selected_card = selected_card or i
-      end
-      -- Emit clicked signal
-    end
-    dt = coroutine.yield(selected_card)
-    if selected_card then
-      local cardid = hand[selected_card]
-      return process_state.selected(dt, userid, cardid, state)
-    end
-  end
-end
-
-function process_state.selected(dt, userid, card, state)
-  local function is_user(id) return userid == id end
-
-  state.highlight_func = highlight.selected(card)
-  state.highlight = {}
-  for _, cid in pairs(state.render_order) do
-    state.highlight[cid] = state.highlight_func(cid)
-  end
-  local flags = {}
-  local tokens = {}
-  tokens.exit = signal.merge(
-    signal.type("mousepressed").filter(function(_, _, b) return b == 2 end),
-    signal.type(event.core.card.play)
-      .filter(is_user)
-      .filter(function(user, _card)
-        return card == _card
-      end)
-  ) .listen(function()
-    flags.terminate = true
-  end)
-  tokens.play = signal.type(core.card.play)
-    .filter(is_user)
-    .listen(function(user, cardid)
-      local hand = gamedata.deck.hand[user]
-      state.discarded_cards[cardid] = cardid
-      for i, card in pairs(hand) do
-        state.pool:queue(card, function(dt)
-          local x, y = hand_position(i)
-          combat.visual.move_to(card, x, y, DEFINE.PLAY_SPEED, dt)
-        end)
-      end
-      state.pool:queue(cardid, function()
-        local x = gamedata.spatial.x[cardid]
-        local y = gamedata.spatial.y[cardid]
-        combat.visual.move_to(cardid, x, y - 100, 250, dt)
-        state.discarded_cards[cardid] = nil
-        state.render_order = sort_render_cards(
-          concatenate(hand, state.discarded_cards)
-        )
-      end)
-      state.render_order = sort_render_cards(
-        concatenate(hand, state.discarded_cards)
-      )
-    end)
-  tokens.draw = signal.type(core.card.draw)
-    .filter(is_user)
-    .listen(function(user, cardid)
-      local hand = gamedata.deck.hand[user]
-      local x, y = hand_position(#hand)
-      gamedata.spatial.x[cardid] = 2000 + x * 0.25
-      gamedata.spatial.y[cardid] = 750
-      state.pool:queue(cardid, function(dt, x, y)
-        combat.visual.move_to(cardid, x, y, DEFINE.DRAW_SPEED, dt)
-      end, x, y)
-      state.render_order = sort_render_cards(
-        concatenate(hand, state.discarded_cards)
-      )
-    end)
-
-
-  while true do
-    for _, t in pairs(tokens) do t() end
-    state.pool:update(dt)
-    render_hand(
-      state.user, state.render_order, state.highlight, state.can_click
-    )
-    dt = coroutine.yield()
-    if flags.terminate then
-      return process_state.default(dt, userid, state)
-    end
-  end
-end
 
 local function draw_card_with_highlight(cardid, opt, x, y, w, h)
   if opt.highlight then
@@ -226,6 +75,29 @@ local function cost_hightlight(cardid)
   end
 end
 
+local function move_cards_to_hand(id, state)
+  local cards = concatenate(gamedata.deck.hand[id], state.remainder)
+  table.sort(cards, function(a, b) return state.time[a] < state.time[b] end)
+  --return function()
+  for i, cid in pairs(cards) do
+    if cid == state.selected then cards[i] = nil end
+  end
+  for i, cid in pairs(cards) do
+    local fx, fy = hand_position(i)
+    --local ix, iy = ix or state.x[cid], iy or state.y[cid]
+    local function f(t)
+      local ix, iy = state.x[cid] or fx, state.y[cid] or fy
+      while true do
+        state.x[cid] = fx * t + ix * (1 - t)
+        state.y[cid] = fy * t + iy * (1 - t)
+        t = coroutine.yield()
+      end
+    end
+    state.animation_pool:queue(cid, util.gerp, 0.2, coroutine.wrap(f))
+  end
+--  end
+end
+
 local function _handle_card_play(state, userid, cardid, target, representation)
   local x = state.x[cardid]
   local y = state.y[cardid]
@@ -237,22 +109,12 @@ local function _handle_card_play(state, userid, cardid, target, representation)
     cardid, cards.animate_fade, representation or cardid, DEFINE.suit, x, y, s,
     text
   )
-
-  local hand = gamedata.deck.hand[userid]
-  for i, cid in pairs(hand) do
-    local fx, fy = hand_position(i)
-    local ix, iy = state.x[cid] or fx, state.y[cid] or fy
+  for _, cid in pairs(gamedata.deck.hand[userid]) do
     state.highlight[cid] = cost_hightlight(cid)
-    local function f(t)
-      local ix, iy = state.x[cid] or fx, state.y[cid] or fy
-      while true do
-        state.x[cid] = fx * t + ix * (1 - t)
-        state.y[cid] = fy * t + iy * (1 - t)
-        t = coroutine.yield()
-      end
-    end
-    state.animation_pool:queue(cid, util.gerp, 0.2, coroutine.wrap(f))
   end
+
+  --move_cards_to_hand(userid, state)
+  state.move_cards = true
 end
 
 local function initialize(userid)
@@ -262,10 +124,14 @@ local function initialize(userid)
     x = {},
     y = {},
     highlight = {},
-    card = {},
+    cards = {},
+    remainder = {},
+    time = {},
     selected = nil,
     reactions = {},
     scale = {},
+    -- Control flags
+    move_cards = false
   }
 
   state.reactions.cancel = signal.type("mousepressed")
@@ -301,30 +167,44 @@ local function initialize(userid)
       local deck_size = deck.size(userid, gamedata.deck.hand)
       local fx, fy = hand_position(deck_size)
       local ix = 2000
+      state.time[cardid] = love.timer.getTime()
       return function()
-        state.y[cardid] = fy
-        state.scale[cardid] = 4
-        if not state.selected then
-          state.highlight[cardid] = cost_hightlight(cardid)
-        end
-        local function f(t)
-          fx = state.x[cardid] or fx
-          while true do
-            state.x[cardid] = fx * t + ix * (1 - t)
-            t = coroutine.yield()
-          end
-        end
-        state.animation_pool:queue(cardid, util.gerp, 0.2, coroutine.wrap(f))
+        state.highlight[cardid] = cost_hightlight(cardid)
+        --move_cards_to_hand(userid, state)
+        state.animation_pool:queue(cardid, function()
+          state.y[cardid] = fy
+          state.x[cardid] = ix
+          state.scale[cardid] = 4
+        end)
+        state.move_cards = true
       end
     end)
-  state.reactions.play = signal.type(core.card.play)
+  state.reactions.play = signal.merge(core.card.play)
     .filter(function(id) return id == userid end)
     .map(function(...) return state, ... end)
     .listen(_handle_card_play)
+  state.reactions.discard = signal.type(core.card.discard)
+    .filter(function(id) return id == userid end)
+    .listen(function(id, cardid)
+      state.remainder[cardid] = cardid
+      state.highlight[cardid] = nil
+      return function()
+        state.remainder[cardid] = nil
+        state.draw_pool:run(
+          cardid, cards.animate_fade, cardid, DEFINE.suit, state.x[cardid],
+          state.y[cardid], state.scale[cardid], text, {200, 80, 80, 255}
+        )
+        --move_cards_to_hand(id, state)
+        state.move_cards = true
+      end
+    end)
 
   local hand = gamedata.deck.hand[userid]
+  local t = love.timer.getTime()
+  local dt = love.timer.getDelta()
   for i, cardid in pairs(hand) do
     state.x[cardid], state.y[cardid] = hand_position(i)
+    state.time[cardid] = t + i * dt * 0.05
     state.scale[cardid] = 4
     state.highlight[cardid] = cost_hightlight(cardid)
   end
@@ -336,6 +216,12 @@ function process_state.default(dt, userid, state)
   state = state or initialize(userid)
   while true do
     for _, r in pairs(state.reactions) do r() end
+
+    if state.move_cards then
+      move_cards_to_hand(userid, state)
+    end
+    state.move_cards = false
+
     state.animation_pool:update(dt)
     state.draw_pool:update(dt)
     local hand = gamedata.deck.hand[userid]
@@ -375,6 +261,16 @@ function process_state.default(dt, userid, state)
       end)
     else
       hit_card = nil
+    end
+    -- Draw the remainder cards
+    for _, cardid in pairs(state.remainder) do
+      DEFINE.suit:Button(
+        cardid, {
+          draw = draw_card_with_highlight,
+        }, state.x[cardid], state.y[cardid],
+        cards.DEFINE.WIDTH * state.scale[cardid],
+        cards.DEFINE.HEIGHT * state.scale[cardid]
+      )
     end
     dt = coroutine.yield(hit_card)
   end

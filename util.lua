@@ -5,12 +5,22 @@ local DEFINE = {
 }
 
 util = {}
-function map(f, t)
+function map(f, ...)
   local r = {}
+
+  local t = zip(...)
   for key, val in pairs(t) do
-    r[key] = f(val)
+    r[key] = f(unpack(val))
   end
   return r
+end
+
+function filter(f, list)
+  local res = {}
+  for key, val in pairs(list) do
+    if f(val) then res[key] = val end
+  end
+  return res
 end
 
 function range(min, max)
@@ -65,7 +75,12 @@ end
 
 function zip(...)
   local lists = {...}
-  local sizes = map(function(t) return #t end, lists)
+  if #lists == 0 then return {} end
+  local sizes = {}
+  for i, l in pairs(lists) do
+    sizes[i] = #l
+  end
+  --local sizes = map(function(t) return #t end, lists)
   local zipped = {}
   local min_size = math.min(unpack(sizes))
   for i = 1, min_size do
@@ -73,7 +88,7 @@ function zip(...)
     for _, l in pairs(lists) do
       table.insert(entry, l[i])
     end
-    table.insert(zipped, lists)
+    table.insert(zipped, entry)
   end
   return zipped
 end

@@ -54,5 +54,5 @@ function init.witch(gd, id, x, y)
 
   gd.combat.health[id] = 10
   gd.functional.portrait[id] = function() return "witch" end
-  animation.play{id, atlas, anime.combat_idle, 0.75}
+  --animation.play{id, atlas, anime.combat_idle, 0.75}
 end

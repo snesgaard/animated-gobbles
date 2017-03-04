@@ -140,19 +140,17 @@ local function transition_draw(_, opt, x, y, w, h)
   gfx.setShader()
 end
 
-local function make_label_color(type)
+local function make_label_color(engine, type)
   local color = {
       normal  = {bg = { 0, 0, 255}, fg = {255,255,188}},
       hovered = {bg = { 50,153,187}, fg = {0,0,255}},
       active  = {bg = {255,153,  0}, fg = {0,0,225}},
       type = type
   }
-  if type == "Player" then
+  if type == engine.DEFINE.FACTION.PLAYER then
     color.base = {80, 120, 250, 255}
-  elseif type == "Enemy" then
+  elseif type == engine.DEFINE.FACTION.ENEMY then
     color.base = {200, 20, 50, 255}
-  elseif type == "Neutral" then
-    color.base = {20, 150, 50, 255}
   else
     error("Unknown turn type provided: " .. type)
   end
@@ -160,16 +158,16 @@ local function make_label_color(type)
   return color
 end
 
-return function(dt, type, previous_type)
+return function(dt, engine, type, previous_type)
   local pool = lambda_pool.new()
   local opt = {
     font = combat_engine.resource.turn_ui_font, color = color,
     align = "center", draw = transition_draw, transition = 0.0
   }
-  opt.current = make_label_color(type)
-  opt.previous = make_label_color(previous_type)
+  opt.current = make_label_color(engine, type)
+  opt.previous = make_label_color(engine, previous_type)
 
-  local state = {action_point = combat_engine.data.action_point}
+  local state = {action_point = engine.get_action(type)}
 
   pool:run(function(dt, opt)
     local time = 0.5
@@ -194,20 +192,20 @@ return function(dt, type, previous_type)
   local tokens = {}
   tokens.pcard = signal.type(event.core.card.play)
     .filter(function(userid)
-      local fac = combat_engine.faction(userid)
-      return fac == combat_engine.DEFINE.FACTION.PLAYER
+      local fac = engine.faction(userid)
+      return fac == engine.DEFINE.FACTION.PLAYER
     end)
     .listen(function(userid, cardid)
-      state.action_point = combat_engine.data.action_point
+      state.action_point = engine.get_action(userid)
     end)
   tokens.ecard = signal.type(event.core.card.play)
     .filter(function(userid)
-      local fac = combat_engine.faction(userid)
-      return fac == combat_engine.DEFINE.FACTION.ENEMY
+      local fac = engine.faction(userid)
+      return fac == engine.DEFINE.FACTION.ENEMY
     end)
     .listen(function(userid, cardid)
       return function()
-        state.action_point = combat_engine.data.action_point
+        state.action_point = engine.get_action(userid)
       end
     end)
 

@@ -26,5 +26,8 @@ return {
       clicked = {}, damage = {}, heal = {}
     },
     effect = {}
+  },
+  hitbox = {
+    appear = {}
   }
 }

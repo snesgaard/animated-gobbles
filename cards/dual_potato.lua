@@ -5,9 +5,8 @@ local card_data = {
   play = {
     --personal = {card = 3},
     random = {
-      faction = "opponent",
-      damage = 1,
-      rep = 4,
+      faction = "opponents",
+      damage = {1, 1, 1, 1},
     },
     visual = {
       animation = {

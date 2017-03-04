@@ -823,6 +823,14 @@ function combat_engine.faction(id)
   if f then return f() end
 end
 
+function combat_engine.faction_members(faction_id)
+  if faction_id == combat_engine.DEFINE.FACTION.PLAYER then
+    return combat_engine.data.party
+  elseif faction_id == combat_engine.DEFINE.FACTION.ENEMY then
+    return combat_engine.data.enemy
+  end
+end
+
 hand_ui_pool = lambda_pool.new()
 
 function combat_engine.begin(allies, enemies)

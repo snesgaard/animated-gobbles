@@ -52,6 +52,10 @@ void effects(
     if (glow) {
         love_Canvases[2] = vec4(color.rgb * tex.rgb, 1.0);
     }
+    if (_do_opague) {
+        love_Canvases[1] = vec4(color.rgb * tex.rgb, 1.0);
+        love_Canvases[3] = vec4(1);
+    }
     if (opague) {
         vec4 n = Texel(normals, texture_coords);
         n = color.a > 0.5 ? vec4(1 - n.r, n.gba) : n;

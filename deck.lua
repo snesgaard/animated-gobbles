@@ -76,6 +76,13 @@ function deck.insert(id, pile, card_id, index)
   return index
 end
 
+function deck.transfer(id, src, dst, src_index, dst_index)
+  src_index = src_index or 1
+  if deck.size(id, src) < src_index then return end
+  local card = deck.draw(id, src, src_index)
+  deck.insert(id, dst, card, dst_index)
+end
+
 function deck.shuffle(id, pile)
   local _pool = pile[id]
   if not _pool then

@@ -19,8 +19,10 @@ require "collision_engine"
 require "entity_engine"
 require "debug_console"
 require "combat/combat_engine"
+local c_engine = require "combat/engine"
 require "script_engine"
 require "lambda_process"
+local sprite = require "sprite"
 
 require "actor/sfx"
 require "actor/engineer"
@@ -76,6 +78,7 @@ function love.load()
   loader.draw_engine()
   loader.combat_engine()
   loader.shared()
+  loader.sprite()
   loader.sfx()
   loader.prop()
   loader.lantern_A()
@@ -108,28 +111,27 @@ function love.load()
 
   ally = {}
   enemy = {}
-  table.insert(ally, initresource(gamedata, init.engineer, 145, -133.5))
+  table.insert(ally, initresource(gamedata, init.engineer, 145, -160))
   local id = ally[1]
   local card_collection = {}
   for i = 1, 5 do table.insert(card_collection, cards.potion) end
 	for i = 1, 5 do table.insert(card_collection, cards.eerie_injection) end
-  for i = 1, 2 do table.insert(card_collection, cards.evil_potato) end
+  for i = 1, 2 do table.insert(card_collection, cards.potion) end
 	for i = 1, 5 do table.insert(card_collection, cards.invasive_surgery) end
-	local rng = love.math.random
-	for _, tab in pairs(gamedata.combat.buff) do
-		tab[id] = rng(-9, 9)
-		if tab[id] == 0 or true then tab[id] = nil end
-	end
+
 	-- print(cards.potato, cards.evil_potato)
   gamedata.combat.collection[id] = card_collection
   table.insert(ally, initresource(gamedata, init.witch, 95, -133.5))
   id = ally[2]
+  -- HACK LOL MEMLEAKS
+  ally[2] = nil
   local card_collection = {}
   --for i = 1, 5 do table.insert(card_collection, cards.potato) end
   --for i = 1, 5 do table.insert(card_collection, cards.evil_potato) end
-	for i = 1, 5 do table.insert(card_collection, cards.bulwark) end
+	for i = 1, 5 do table.insert(card_collection, cards.second_wind) end
 	for i = 1, 5 do table.insert(card_collection, cards.fury) end
 	for i = 1, 5 do table.insert(card_collection, cards.insight) end
+	for i = 1, 5 do table.insert(card_collection, cards.taxing_raid) end
   gamedata.combat.collection[id] = card_collection
 
 
@@ -145,7 +147,16 @@ function love.load()
 	for i = 1, 15 do table.insert(card_collection, cards.potato) end
 	for i = 1, 15 do table.insert(card_collection, cards.evil_potato) end
 	gamedata.combat.collection[id] = card_collection
-  combat_engine.begin(ally, enemy)
+  --combat_engine.begin(ally, enemy)
+  --c_engine.battle(ally, enemy)
+  process_pool = lambda_pool.new()
+  process_pool:run("battle", c_engine.battle, ally, enemy)
+
+
+	draw_engine.foreground.sprite = draw_engine.create_sprite(function(norm_set)
+		sprite.suit.base:draw(norm_set)
+    sprite.suit.projectile:draw(norm_set)
+	end)
 end
 
 map_geometry = {}
@@ -175,6 +186,7 @@ function love.update(dt)
   -- Clean resources for next
   quit_listen()
   update.system(dt)
+	for _, s in pairs(sprite.suit) do s:clear() end
   for id, co in pairs(gamedata.ai.control) do
     coroutine.resume(co, id)
   end
@@ -183,6 +195,7 @@ function love.update(dt)
 --  signal.emit("update", dt)
   --entity_engine.sequence_sync:onNext(dt)
   --state_engine.update()
+  process_pool:update(dt)
   combat_engine.update(dt)
   lambda.update(dt)
   entity_engine.update(dt)

@@ -77,6 +77,7 @@ function pool:run(...)
       args[i] = args[i + 1]
     end
   end
+  if not f then return end
 
   local shroud_f = function(dt)
     return f(dt, unpack(args))
@@ -112,6 +113,7 @@ function pool:run(...)
 end
 
 function pool:queue(name, f, ...)
+  if not f then return end
   if not self:status(name) then return self:run(name, f, ...) end
   local args = {...}
   local q = self.named_thread.queue[name]

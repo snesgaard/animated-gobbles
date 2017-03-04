@@ -165,10 +165,10 @@ function draw_engine.create_sprite(f, nmap)
   end
   local function color(opague)
     gfx.setShader(shader.color)
-    shader.color:send("normals", nmap)
+    --shader.color:send("normals", nmap)
     shader.color:send("_do_opague", opague)
     shader.color:send("_do_sfx", not opague)
-    f()
+    f(function(normals) shader.color:send("normals", normals) end)
   end
 
   return {stencil = stencil, occlusion = occlusion, color = color}
@@ -178,9 +178,12 @@ function draw_engine.create_atlas(atlas_id)
   local atlas = resource.atlas
   local cmap = atlas.color[atlas_id]
   local nmap = atlas.normal[atlas_id]
-  return draw_engine.create_sprite(function()
+  return draw_engine.create_sprite(function(normal_set)
+    if normal_set then
+      normal_set(nmap or default_normal)
+    end
     gfx.draw(cmap)
-  end, nmap)
+  end)
 end
 
 function draw_engine.create_level(level, layer)

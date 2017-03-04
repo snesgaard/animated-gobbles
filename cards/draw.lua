@@ -79,7 +79,7 @@ local function draw_text(text, opt, x, y, w, h, rot, sx, sy)
   sx = sx or 1
   sy = sy or 1
   love.graphics.setFont(opt.font)
-  y = y + vertical_offset(opt.valign, opt.font, h) * sy
+  y = y + vertical_offset(opt.valign, opt.font, h / sy) * sy
   local theme = opt.color
   local r, g, b, a = gfx.getColor()
   local tr, tg, tb = unpack(theme.normal.fg or {0, 0, 0})
@@ -146,7 +146,7 @@ function cards.suit_draw(cardid, opt, x, y, w, h)
     name_font = RESOURCE.FONT.NAME_SMALL
   elseif string.len(name) > 8 then
     name_font = RESOURCE.FONT.NAME_MEDIUM
-    name_offset = 0.5
+    --name_offset = 0.5
   end
 
   --gfx.setColor(255, 255, 255)
@@ -159,8 +159,8 @@ function cards.suit_draw(cardid, opt, x, y, w, h)
 
   local text_scale = sx / 4.0
   draw_text(
-    name, {color = theme.card_text, font = name_font, valign = "top"},
-    x + 7 * sx, y + name_offset * sy, 35 * sx, 5 * sy, 0, text_scale, text_scale
+    name, {color = theme.card_text, font = name_font, valign = "center"},
+    x + 7 * sx, y + 1 * sy, 35 * sx, 5 * sy, 0, text_scale, text_scale
   )
   draw_text(
     text,
@@ -217,13 +217,14 @@ local function draw_card_particle(cardid, opt, x, y, w, h)
   gfx.draw(pt, x, y)
 end
 
-function cards.animate_fade(dt, cardid, _suit, x, y, s, text)
+function cards.animate_fade(dt, cardid, _suit, x, y, s, text, color)
   local fade_time = 0.2
   local pt = gfx.newParticleSystem(particle_im, 30)
   local time = fade_time
   --local text = gamedata.card.text[cardid]
+  color = color or {80, 80, 200, 255}
   local opt = {
-    particle = pt, color = {80, 80, 200, 255}, draw = draw_card_fade,
+    particle = pt, color = color, draw = draw_card_fade,
     text = text
   }
 

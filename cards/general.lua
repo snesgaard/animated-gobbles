@@ -118,6 +118,7 @@ function cards.init(gamedata, id, card_data)
   gamedata.card.effect[id] = effects
 
   gamedata.card.text[id] = cards.compile_text(gamedata.card.effect[id])
+  gamedata.card.animate[id] = card_data.play.animate
 
   --TODO Insert userid as an arguemnt
   for _, key in pairs({"hand", "discard", "draw"}) do
@@ -273,3 +274,6 @@ require "cards/eerie_injection"
 require "cards/potion"
 require "cards/insight"
 require "cards/bulwark"
+require "cards/potion_of_forgetfulness"
+require "cards/taxing_raid"
+require "cards/second_wind"

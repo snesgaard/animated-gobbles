@@ -75,12 +75,12 @@ local function alpha_sort_card(card_list)
 end
 
 
-local function initialize(userid)
+local function initialize(engine, userid)
   local pick_theme = {
-    [combat_engine.DEFINE.FACTION.PLAYER] = theme.player,
-    [combat_engine.DEFINE.FACTION.ENEMY] = theme.enemy,
+    [engine.DEFINE.FACTION.PLAYER] = theme.player,
+    [engine.DEFINE.FACTION.ENEMY] = theme.enemy,
   }
-  local usertheme = pick_theme[combat_engine.faction(userid)]
+  local usertheme = pick_theme[engine.faction(userid)]
   local health = gamedata.combat.health[userid]
   local damage = gamedata.combat.damage[userid] or 0
 
@@ -179,9 +179,9 @@ local function card_list_control(parent, card_list, opt, x, y, w, h)
   return card_list_control(parent, card_list, opt, x, y, w, h)
 end
 
-return function(dt, userid)
+return function(dt, engine, userid)
   local function is_user(id) return id == userid end
-  local state = initialize(userid)
+  local state = initialize(engine, userid)
   local tokens = {}
   tokens.damage = signal.merge(event.core.character.damage, event.core.character.heal)
     .filter(is_user)
@@ -200,6 +200,9 @@ return function(dt, userid)
   tokens.draw = signal.type(event.core.card.draw)
     .filter(is_user)
     .listen(function(userid)
+      for _, cid in pairs(gamedata.deck.draw[userid]) do
+
+      end
       local draw = alpha_sort_card(gamedata.deck.draw[userid])
       local discard = alpha_sort_card(gamedata.deck.discard[userid])
       return function()
@@ -277,21 +280,6 @@ return function(dt, userid)
       state.x - DEFINE.screen_width * 0.5 + deck_margin + 10,
       cy + deck_height * 0.5, 200, 20
     )
-    --[[
-    if _draw_state.hovered and #state.card.draw > 0 then
-      menu(
-        state.card.draw, state.opt.draw_list, cx - deck_margin - 10,
-        cy + deck_height * 0.5, 100, 20
-      )
-    end
-    if _discard_state.hovered and #state.card.discard > 0 then
-      menu(
-        state.card.discard, state.opt.discard_list,
-        state.x + 10 - DEFINE.screen_width * 0.5,
-        cy  + deck_height * 0.5, 100, 20
-      )
-    end
-    --]]
     dt = coroutine.yield()
   end
 end
