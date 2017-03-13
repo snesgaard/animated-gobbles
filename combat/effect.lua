@@ -24,6 +24,20 @@ local function create_generator(f)
   end
 end
 
+-- This effect has the following valid arguments:
+-- id -> id -> value :: Gives <id> <value> armor
+-- id -> [id] -> value :: Gives all <[id]> <value> armor
+-- id -> [id] -> [value] :: Gives <[id]> matching entry armor in <[value]>
+_effect_generator.armor = create_generator(function(user, target, value)
+  local combat = gamedata.combat
+  if type(target) == "number" then
+    target = {target}
+  end
+  if type(value) == "number" then
+    value = util.duplicate(value, #target)
+  end
+end)
+
 -- This effect have the following valid call arguments
 -- id -> id -> value :: Heals <id> for <value>
 -- id -> [id] -> value :: Heals all <[id]> for <value>

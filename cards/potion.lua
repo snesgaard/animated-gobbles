@@ -1,6 +1,7 @@
 local event = require "combat/event"
 local lambda_pool = require "lambda_pool"
 local sprite = require "sprite"
+local proj = require "combat/animation/projectile"
 
 local card_data = {
   cost = 1,
@@ -30,7 +31,7 @@ local function projectile(dt, ix, iy, fx, fy, time, on_impact)
   pool:run("move", util.lerp, time, function(t)
     state.x = ix * (1 - t) + fx * t
     state.y = deg.a * t * t + deg.b * t + deg.c
-    state.r = t * 5
+    state.r = t * 10
   end)
   -- HACK: Temporary effect
   local sheet, anime = prop.get_resource()
@@ -38,6 +39,7 @@ local function projectile(dt, ix, iy, fx, fy, time, on_impact)
     sprite.cycle, {suit = sprite.suit.projectile}, sheet, anime.potion_red,
     function() return state.x, state.y, state.r end
   )
+  
   while pool:status("move") do
     pool:update(dt)
 --    print(state.x, state.y)
@@ -54,19 +56,22 @@ function card_data.play.animate(dt, engine, cb_effects)
   local idle_anime = gamedata.visual.idle[user]
   local throw_anime = gamedata.visual.throw[user]
 
+  local sheet, anime = prop.get_resource()
+
   local token = signal.type(event.hitbox.appear)
     .filter(function(id) return id == 0xff0000 end)
     .listen(function(_, x, y, w, h)
       pool:run(
-        projectile, x, y, gamedata.spatial.x[target],
-        gamedata.spatial.y[target], 0.5,
-        function()
+        function(...)
+          proj.ballistic(...)
           for _, effect_list in pairs(cb_effects) do
             for _, effect in pairs(effect_list) do
               effect.callbacks()
             end
           end
-        end
+        end,
+        x, y, gamedata.spatial.x[target], gamedata.spatial.y[target], 0.5,
+        sheet, anime.potion_red
       )
     end)
 

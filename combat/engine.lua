@@ -5,7 +5,8 @@ local ui = {
   stat = require "combat/ui/character_stat",
   player = require "combat/ui/player",
   turn = require "combat/ui/turn",
-  popup = require "combat/ui/icon_popup"
+  popup = require "combat/ui/icon_popup",
+  buff = require "combat/ui/buff"
 }
 local common = require "combat/ui/common"
 
@@ -126,6 +127,8 @@ local function initialize(party, enemies)
   -- Start all related UI
   for _, id in pairs(_all) do
     handle.pool.ui:run(id, ui.stat, handle, id)
+    local x, y = camera.transform(camera_id, level, gamedata.spatial.x[id], gamedata.spatial.y[id])
+    handle.pool.ui:run(ui.buff, handle, x - 75, 270, 100, id)
   end
   handle.pool.ui:run("popup", ui.popup)
   handle.pool.battle:run("turn", handle_play, handle, party, ui.player, enemies)

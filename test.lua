@@ -117,7 +117,7 @@ function love.load()
   for i = 1, 5 do table.insert(card_collection, cards.potion) end
 	for i = 1, 5 do table.insert(card_collection, cards.eerie_injection) end
   for i = 1, 2 do table.insert(card_collection, cards.potion) end
-	for i = 1, 5 do table.insert(card_collection, cards.invasive_surgery) end
+	for i = 1, 5 do table.insert(card_collection, cards.bulwark) end
 
 	-- print(cards.potato, cards.evil_potato)
   gamedata.combat.collection[id] = card_collection

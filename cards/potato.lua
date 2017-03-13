@@ -3,8 +3,12 @@ local card_data = {
   name = "Potato",
   image = "potato",
   play = {
-    single = {damage = 1},
-    personal = {card = 1},
+    single = {
+      damage = 1
+    },
+    personal = {
+      card = 1,
+    },
     visual = {
       animation = {
         type = "projectile",

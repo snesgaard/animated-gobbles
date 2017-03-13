@@ -1,4 +1,4 @@
-target=gobbles card engineer portrait prop sfx witch
+target=gobbles card engineer portrait prop sfx witch gungoblin icon
 clean_target = $(target:%=clean-%)
 # %sheet=$(target:=/sheet.png)
 

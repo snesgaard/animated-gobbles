@@ -13,5 +13,5 @@ end
 
 function prop.get_resource(is_background)
   local a = is_background and bg_atlas or fg_atlas
-  return a, anime, frame_data
+  return a, anime
 end

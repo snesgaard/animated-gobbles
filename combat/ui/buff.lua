@@ -146,7 +146,7 @@ local function initialize(userid)
 end
 
 -- Drawn with respect to
-return function(dt, x, y, w, userid)
+return function(dt, engine, x, y, w, userid)
   local state = initialize(userid)
 
   while true do
